@@ -113,6 +113,32 @@ fun <T> Picker(
     }
 }
 
+/** Chip que abre o calendário e devolve a data escolhida. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DatePickerChip(label: String, initial: LocalDate, onPick: (LocalDate) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    AssistChip(
+        onClick = { open = true },
+        label = { Text(label) },
+        leadingIcon = { Icon(Icons.Filled.CalendarMonth, contentDescription = null, modifier = Modifier.size(18.dp)) },
+        modifier = Modifier.heightIn(min = 48.dp),
+    )
+    if (open) {
+        val state = rememberDatePickerState(initialSelectedDateMillis = initial.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli())
+        DatePickerDialog(
+            onDismissRequest = { open = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    state.selectedDateMillis?.let { onPick(Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate()) }
+                    open = false
+                }) { Text("OK") }
+            },
+            dismissButton = { TextButton(onClick = { open = false }) { Text("Cancelar") } },
+        ) { DatePicker(state) }
+    }
+}
+
 /** Escolha de data com atalhos Ontem/Hoje e calendário. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

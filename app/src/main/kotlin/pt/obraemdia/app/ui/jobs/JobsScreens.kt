@@ -28,6 +28,31 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import pt.obraemdia.app.data.repo.JobSummary
 import pt.obraemdia.app.data.repo.Snapshot
+import pt.obraemdia.app.ui.AgendaState
+import pt.obraemdia.app.ui.SaveResult
+import pt.obraemdia.app.ui.agenda.agendaMarks
+import pt.obraemdia.app.ui.components.DatePickerChip
+import pt.obraemdia.app.ui.components.MonthCalendar
+import pt.obraemdia.app.ui.forms.describe
+import pt.obraemdia.app.ui.longLabel
+import pt.obraemdia.domain.job.HoldReason
+import pt.obraemdia.domain.job.JobStatus
+import pt.obraemdia.domain.job.StatusChange
+import pt.obraemdia.domain.job.label
+import pt.obraemdia.domain.money.Money
+import pt.obraemdia.domain.schedule.AGENDA_ZONE
+import pt.obraemdia.domain.schedule.BookingFirmness
+import java.time.LocalDate
+import java.time.YearMonth
+import java.time.format.DateTimeFormatter
+import kotlinx.coroutines.launch
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.rememberCoroutineScope
 import pt.obraemdia.app.ui.components.LabelValue
 import pt.obraemdia.app.ui.components.PriorityTag
 import pt.obraemdia.app.ui.components.SectionCard
@@ -100,9 +125,14 @@ fun JobsScreen(snapshot: Snapshot, onOpenJob: (String) -> Unit, onNewJob: () -> 
 @Composable
 fun JobDetailScreen(
     snapshot: Snapshot,
+    agenda: AgendaState?,
+    today: LocalDate,
     jobId: String,
     onRecordTime: () -> Unit,
     onRecordPayment: () -> Unit,
+    onSchedule: () -> Unit,
+    onChangeStatus: suspend (StatusChange) -> SaveResult,
+    onMessage: (String) -> Unit,
     onNotReady: (String) -> Unit,
 ) {
     val s = snapshot.summary(jobId)
@@ -111,6 +141,11 @@ fun JobDetailScreen(
         return
     }
     val job = s.job
+    var statusDialog by rememberSaveable { mutableStateOf(false) }
+    val jobBookings = agenda?.items.orEmpty().filter { it.booking.jobId == jobId }
+    val bookedDays = jobBookings.map { it.booking.slot.start.atZone(AGENDA_ZONE).toLocalDate() }.distinct().sorted()
+    var month by rememberSaveable { mutableStateOf(YearMonth.from(bookedDays.firstOrNull { it >= today } ?: today)) }
+    var selected by rememberSaveable { mutableStateOf<LocalDate?>(null) }
 
     LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
@@ -123,8 +158,16 @@ fun JobDetailScreen(
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     StatusTag(job.status)
                     PriorityTag(job.priority)
+                    AssistChip(onClick = { statusDialog = true }, label = { Text("Mudar estado") }, modifier = Modifier.heightIn(min = 48.dp))
                 }
                 job.urgentReason?.let { Text("Motivo da urgência: $it", style = MaterialTheme.typography.bodyMedium) }
+                if (job.status == JobStatus.ON_HOLD) {
+                    val reason = job.holdReason?.label ?: "—"
+                    Text(
+                        "Em espera: $reason" + (job.holdNote?.let { " · $it" } ?: "") + (job.holdReviewDate?.let { " · rever a ${it.shortLabel()}" } ?: ""),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
             }
         }
         item {
@@ -133,6 +176,40 @@ fun JobDetailScreen(
                 FilledTonalButton(onClick = onRecordTime, modifier = Modifier.heightIn(min = 48.dp)) { Text("Horas", softWrap = false) }
                 FilledTonalButton(onClick = { onNotReady("Adicionar gasto") }, modifier = Modifier.heightIn(min = 48.dp)) { Text("Gasto", softWrap = false) }
                 FilledTonalButton(onClick = onRecordPayment, modifier = Modifier.heightIn(min = 48.dp)) { Text("Pagamento", softWrap = false) }
+                FilledTonalButton(onClick = onSchedule, modifier = Modifier.heightIn(min = 48.dp)) { Text("Agendar", softWrap = false) }
+            }
+        }
+        item {
+            val upcoming = bookedDays.count { it >= today }
+            SectionCard(
+                "Dias marcados",
+                caption = if (bookedDays.isEmpty()) "Ainda sem dias marcados" else "${bookedDays.size} dia(s) · $upcoming a partir de hoje",
+            ) {
+                MonthCalendar(
+                    month = month,
+                    onMonthChange = { month = it },
+                    marks = agendaMarks(agenda, jobId = jobId),
+                    today = today,
+                    selected = selected,
+                    onSelect = { selected = it },
+                )
+                selected?.let { day ->
+                    val onDay = jobBookings.filter { it.booking.slot.start.atZone(AGENDA_ZONE).toLocalDate() == day }
+                    if (onDay.isEmpty()) {
+                        Text("${day.longLabel()}: sem marcação desta obra.", style = MaterialTheme.typography.bodyMedium)
+                    }
+                    onDay.forEach { item ->
+                        val b = item.booking
+                        val hhmm = DateTimeFormatter.ofPattern("HH:mm")
+                        Text(
+                            "${day.longLabel()} · ${b.slot.start.atZone(AGENDA_ZONE).format(hhmm)}–${b.slot.end.atZone(AGENDA_ZONE).format(hhmm)} · " +
+                                b.workerIds.sorted().joinToString(" e ") { snapshot.workerName(it) } +
+                                if (b.firmness == BookingFirmness.TENTATIVE) " · pré-reserva" else "",
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        item.conflicts.forEach { WarningBox(it.describe(snapshot)) }
+                    }
+                }
             }
         }
         item {
@@ -191,7 +268,101 @@ fun JobDetailScreen(
             }
         }
     }
+
+    if (statusDialog) {
+        StatusDialog(
+            current = job.status,
+            received = s.received,
+            onDismiss = { statusDialog = false },
+            onConfirm = onChangeStatus,
+            onResult = { statusDialog = false; onMessage(it) },
+        )
+    }
 }
+
+@Composable
+private fun StatusDialog(
+    current: JobStatus,
+    received: Money,
+    onDismiss: () -> Unit,
+    onConfirm: suspend (StatusChange) -> SaveResult,
+    onResult: (String) -> Unit,
+) {
+    var target by rememberSaveable { mutableStateOf<JobStatus?>(null) }
+    var reason by rememberSaveable { mutableStateOf<HoldReason?>(null) }
+    var note by rememberSaveable { mutableStateOf("") }
+    var review by rememberSaveable { mutableStateOf<LocalDate?>(null) }
+    var error by rememberSaveable { mutableStateOf<String?>(null) }
+    var busy by rememberSaveable { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Estado do trabalho") },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Atual: ${current.label}", style = MaterialTheme.typography.bodyMedium)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    (JobStatus.entries - current).forEach { st ->
+                        FilterChip(target == st, { target = st; error = null }, { Text(st.label) }, Modifier.heightIn(min = 48.dp))
+                    }
+                }
+                if (target == JobStatus.ON_HOLD) {
+                    Text("Motivo da espera", style = MaterialTheme.typography.labelLarge)
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        HoldReason.entries.forEach { r ->
+                            FilterChip(reason == r, { reason = r }, { Text(r.label) }, Modifier.heightIn(min = 48.dp))
+                        }
+                    }
+                    OutlinedTextField(
+                        note, { note = it },
+                        label = { Text(if (reason == HoldReason.OTHER) "Descrição (obrigatória)" else "Nota (opcional)") },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    DatePickerChip(review?.let { "Rever a ${it.shortLabel()}" } ?: "Data de revisão (opcional)", review ?: LocalDate.now(AGENDA_ZONE)) {
+                        review = it
+                    }
+                }
+                if (target == JobStatus.CANCELLED) {
+                    WarningBox(
+                        "As reservas futuras são libertadas." +
+                            if (received.isPositive) " Já foram recebidos ${received.format()}: registe a devolução ou o acerto com o cliente." else "",
+                    )
+                }
+                if (target == JobStatus.COMPLETED) {
+                    Text(
+                        "Concluir não encerra a obra nem a dá como paga. O encerramento é uma revisão à parte.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                error?.let { WarningBox(it) }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = target != null && !busy,
+                onClick = {
+                    busy = true
+                    scope.launch {
+                        val result = onConfirm(StatusChange(target!!, reason, note, review))
+                        busy = false
+                        if (result.ok) onResult(result.message) else error = result.message
+                    }
+                },
+            ) { Text("Confirmar") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } },
+    )
+}
+
+val HoldReason.label: String
+    get() = when (this) {
+        HoldReason.MATERIAL -> "Material"
+        HoldReason.CLIENT -> "Cliente"
+        HoldReason.WEATHER -> "Meteorologia"
+        HoldReason.OTHER -> "Outro"
+    }
 
 val PaymentSituation.label: String
     get() = when (this) {

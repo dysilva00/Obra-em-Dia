@@ -21,7 +21,18 @@ import pt.obraemdia.domain.billing.BillingMode
 import pt.obraemdia.domain.billing.MaterialsPolicy
 import pt.obraemdia.domain.job.JobStatus
 import pt.obraemdia.domain.job.Priority
+import pt.obraemdia.app.data.db.ScheduleAssignmentEntity
+import pt.obraemdia.app.data.db.ScheduleEntryEntity
+import pt.obraemdia.domain.job.JobTransitions
+import pt.obraemdia.domain.job.StatusChange
+import pt.obraemdia.domain.job.TransitionResult
 import pt.obraemdia.domain.money.Money
+import pt.obraemdia.domain.schedule.Booking
+import pt.obraemdia.domain.schedule.BookingFirmness
+import pt.obraemdia.domain.schedule.Conflict
+import pt.obraemdia.domain.schedule.ConflictDetector
+import pt.obraemdia.domain.schedule.TimeSlot
+import java.time.Duration
 import java.time.LocalDate
 import java.util.UUID
 
@@ -64,6 +75,29 @@ data class NewPayment(
     val method: PaymentMethod,
     val note: String?,
 )
+
+data class NewBooking(
+    val operationId: String,
+    val jobId: String,
+    val workerIds: Set<String>,
+    /** Uma reserva por dia; obras com dias descontínuos são simplesmente vários dias. */
+    val slots: List<TimeSlot>,
+    val firmness: BookingFirmness,
+    /** Obrigatório para gravar quando há conflitos ("manter a sobreposição"). */
+    val overlapReason: String?,
+    val note: String?,
+)
+
+sealed interface BookingOutcome {
+    data class Saved(val days: Int, val jobBecameScheduled: Boolean) : BookingOutcome
+    data class Conflicts(val conflicts: List<Conflict>) : BookingOutcome
+    data object Duplicate : BookingOutcome
+}
+
+sealed interface StatusOutcome {
+    data class Changed(val releasedBookings: Int) : StatusOutcome
+    data class Rejected(val message: String) : StatusOutcome
+}
 
 class ObraRepository(private val db: AppDatabase, private val clock: () -> Long = System::currentTimeMillis) {
 
@@ -167,6 +201,96 @@ class ObraRepository(private val db: AppDatabase, private val clock: () -> Long 
             if (rowId == -1L) return@transaction SaveOutcome.Duplicate
             audit("cash_movement", id, "create", "Recebimento ${input.amount.format()}")
             SaveOutcome.Saved
+        }
+    }
+
+    /**
+     * Grava uma marcação (uma reserva por dia). Os conflitos são verificados de novo dentro da
+     * transação: se existirem e não houver motivo para manter a sobreposição, nada é gravado.
+     * Uma marcação firme numa obra "Por confirmar" passa-a a "Agendada".
+     */
+    suspend fun createBooking(input: NewBooking, travelMarginMinutes: Long = 0): BookingOutcome {
+        require(input.slots.isNotEmpty()) { "Escolha pelo menos um dia" }
+        require(input.workerIds.isNotEmpty()) { "Escolha pelo menos uma pessoa" }
+        val now = clock()
+        val margin = Duration.ofMinutes(travelMarginMinutes)
+        return transaction {
+            val job = requireNotNull(db.jobDao().getById(input.jobId)) { "Obra não encontrada" }
+            require(job.status != JobStatus.CANCELLED) { "A obra está cancelada" }
+            val from = input.slots.minOf { it.start } - margin
+            val to = input.slots.maxOf { it.end } + margin
+            // Exclui as reservas desta mesma operação: uma nova tentativa não conflitua consigo própria.
+            val existing = db.scheduleDao().getRange(from.toEpochMilli(), to.toEpochMilli())
+                .filter { it.entry.operationId != input.operationId }
+                .toBookings()
+            val unavailable = db.scheduleDao().getTimeOff(from.toEpochMilli(), to.toEpochMilli()).toUnavailabilities()
+            val detector = ConflictDetector(margin)
+            val conflicts = input.slots.flatMap { slot ->
+                detector.conflictsFor(Booking("new", job.id, job.siteId, job.title, input.workerIds, slot, input.firmness), existing, unavailable)
+            }
+            if (conflicts.isNotEmpty() && input.overlapReason.isNullOrBlank()) {
+                return@transaction BookingOutcome.Conflicts(conflicts)
+            }
+
+            var inserted = 0
+            input.slots.forEach { slot ->
+                val id = newId()
+                val rowId = db.scheduleDao().insertEntryIgnoring(
+                    ScheduleEntryEntity(
+                        id = id,
+                        operationId = input.operationId,
+                        jobId = job.id,
+                        startMs = slot.start.toEpochMilli(),
+                        endMs = slot.end.toEpochMilli(),
+                        firmness = input.firmness,
+                        overlapReason = input.overlapReason?.takeIf { conflicts.isNotEmpty() },
+                        note = input.note?.takeIf { it.isNotBlank() },
+                        createdAt = now,
+                        updatedAt = now,
+                    ),
+                )
+                if (rowId != -1L) {
+                    db.scheduleDao().insertAssignments(input.workerIds.map { ScheduleAssignmentEntity(id, it) })
+                    inserted++
+                }
+            }
+            if (inserted == 0) return@transaction BookingOutcome.Duplicate
+
+            val becomesScheduled = input.firmness == BookingFirmness.FIRM && job.status == JobStatus.TO_CONFIRM
+            if (becomesScheduled) {
+                db.jobDao().update(job.copy(status = JobStatus.SCHEDULED, updatedAt = now))
+            }
+            val overlap = if (conflicts.isNotEmpty()) " · sobreposição mantida: ${input.overlapReason}" else ""
+            audit("schedule", input.operationId, "create", "$inserted dia(s)$overlap")
+            BookingOutcome.Saved(inserted, becomesScheduled)
+        }
+    }
+
+    /** Muda o estado do trabalho segundo as regras do domínio; o estado de pagamento é independente. */
+    suspend fun changeStatus(jobId: String, change: StatusChange): StatusOutcome {
+        val now = clock()
+        return transaction {
+            val job = requireNotNull(db.jobDao().getById(jobId)) { "Obra não encontrada" }
+            val hasBooking = db.scheduleDao().firmCount(jobId) > 0
+            when (val check = JobTransitions.validate(job.status, change, hasBooking)) {
+                is TransitionResult.Rejected -> StatusOutcome.Rejected(check.message)
+                TransitionResult.Allowed -> {
+                    val onHold = change.target == JobStatus.ON_HOLD
+                    db.jobDao().update(
+                        job.copy(
+                            status = change.target,
+                            holdReason = if (onHold) change.holdReason else null,
+                            holdNote = if (onHold) change.holdNote?.takeIf { it.isNotBlank() } else null,
+                            holdReviewDate = if (onHold) change.reviewDate else null,
+                            updatedAt = now,
+                        ),
+                    )
+                    // Cancelar liberta as reservas futuras (sem as apagar do histórico).
+                    val released = if (change.target == JobStatus.CANCELLED) db.scheduleDao().releaseFuture(jobId, now) else 0
+                    audit("job", jobId, "status", "${job.status} → ${change.target}" + if (released > 0) " · $released reserva(s) libertada(s)" else "")
+                    StatusOutcome.Changed(released)
+                }
+            }
         }
     }
 

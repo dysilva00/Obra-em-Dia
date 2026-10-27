@@ -4,8 +4,9 @@ Legenda: ✅ concluído e verificado · 🟡 parcial · ⬜ pendente
 
 ## Verificação
 
-- `gradlew :domain:test`: 28 testes de regras (dinheiro, IVA, repartição, agenda/conflitos, cobrança, saldos, estados, encerramento).
-- `gradlew connectedDebugAndroidTest`: 9 testes da base de dados no emulador (idempotência, taxas históricas, transações, chaves estrangeiras, remoção de demonstração).
+- `gradlew :domain:test`: 32 testes de regras (dinheiro, IVA, repartição, agenda/conflitos, sugestão de dias livres, cobrança, saldos, estados, encerramento).
+- `gradlew connectedDebugAndroidTest`: 17 testes no emulador (idempotência, taxas históricas, transações, chaves estrangeiras, remoção de demonstração, agendamento com conflitos, estados, cancelamento, migração v1→v2).
+  **Atenção:** este comando desinstala a app no fim e apaga os dados do emulador.
 - Verificado manualmente no emulador (API 37): navegação, letra a 130 %, registo de pagamento com duplo toque (gravado uma única vez) e persistência depois de fechar a app à força.
 
 ## Fase 0 — Esqueleto e provas técnicas
@@ -15,13 +16,17 @@ Legenda: ✅ concluído e verificado · 🟡 parcial · ⬜ pendente
 - ✅ Dados de demonstração gravados e marcados, com a ação "Remover".
 - ✅ Ecrãs com dados reais: Início (mês navegável), Agenda (conflitos e indisponibilidades), Obras (lista, pesquisa e ficha) e Contas.
 - ✅ Formulários reais: Nova obra, Registar horas (incluindo "Os dois") e Registar pagamento.
+- ✅ Agendar obra: vários dias (descontínuos), dia completo/manhã/tarde/horas, pré-reserva, conflitos detetados enquanto se preenche e de novo na gravação, com as 3 saídas (outro dia sugerido, outra pessoa livre, manter com motivo).
+- ✅ Vista de calendário mensal na Agenda (com filtro por pessoa e "Agendar neste dia") e na ficha da obra (dias marcados dessa obra).
+- ✅ Mudar estado da obra com as regras do domínio; cancelar liberta as reservas futuras.
+- ✅ Esquema v2 com migração automática testada (v1→v2).
 - ⬜ Prova no aparelho real: leitura de QR AT
 - ⬜ Prova no aparelho real: seletor de contactos
 - ⬜ Exportação via SAF e ciclo de backup/restauro com anexo
 
 ## Ainda simulado ("ainda não disponível nesta versão")
 
-Adicionar gasto, Agendar obra, Rever encerramento, Projeções e Exportar.
+Adicionar gasto, Rever encerramento, Projeções e Exportar.
 
 ## Limitações conhecidas
 

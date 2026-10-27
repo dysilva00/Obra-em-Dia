@@ -98,7 +98,7 @@ class DemoSeeder(private val db: AppDatabase, private val repo: ObraRepository) 
 
         suspend fun book(jobId: String, workers: List<WorkerEntity>, slot: TimeSlot, firm: BookingFirmness = BookingFirmness.FIRM) {
             val id = newId()
-            db.scheduleDao().insertEntry(ScheduleEntryEntity(id, jobId, slot.start.toEpochMilli(), slot.end.toEpochMilli(), firm, createdAt = now, updatedAt = now, isDemo = true))
+            db.scheduleDao().insertEntry(ScheduleEntryEntity(id = id, jobId = jobId, startMs = slot.start.toEpochMilli(), endMs = slot.end.toEpochMilli(), firmness = firm, createdAt = now, updatedAt = now, isDemo = true))
             db.scheduleDao().insertAssignments(workers.map { ScheduleAssignmentEntity(id, it.id) })
         }
 

@@ -85,6 +85,32 @@ interface ScheduleDao {
 
     @Query("SELECT * FROM time_off WHERE deletedAt IS NULL AND endMs > :fromMs AND startMs < :toMs")
     fun observeTimeOff(fromMs: Long, toMs: Long): Flow<List<TimeOffEntity>>
+
+    /** Leitura direta (não Flow) para verificar conflitos dentro da transação de gravação. */
+    @Query(
+        """
+        SELECT schedule_entries.*, a.workerId AS workerId, jobs.title AS jobTitle, jobs.siteId AS siteId
+        FROM schedule_entries
+        JOIN schedule_assignments a ON a.entryId = schedule_entries.id
+        JOIN jobs ON jobs.id = schedule_entries.jobId
+        WHERE schedule_entries.deletedAt IS NULL AND schedule_entries.endMs > :fromMs AND schedule_entries.startMs < :toMs
+        """,
+    )
+    suspend fun getRange(fromMs: Long, toMs: Long): List<ScheduleRow>
+
+    @Query("SELECT * FROM time_off WHERE deletedAt IS NULL AND endMs > :fromMs AND startMs < :toMs")
+    suspend fun getTimeOff(fromMs: Long, toMs: Long): List<TimeOffEntity>
+
+    /** IGNORE + índice único (operationId, startMs): repetir a marcação não a duplica. */
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertEntryIgnoring(entry: ScheduleEntryEntity): Long
+
+    @Query("SELECT COUNT(*) FROM schedule_entries WHERE jobId = :jobId AND deletedAt IS NULL AND firmness = 'FIRM'")
+    suspend fun firmCount(jobId: String): Int
+
+    /** Liberta (eliminação lógica) as reservas futuras de uma obra; devolve quantas foram libertadas. */
+    @Query("UPDATE schedule_entries SET deletedAt = :now, updatedAt = :now WHERE jobId = :jobId AND startMs >= :now AND deletedAt IS NULL")
+    suspend fun releaseFuture(jobId: String, now: Long): Int
 }
 
 @Dao

@@ -105,10 +105,16 @@ data class JobEntity(
 @Entity(
     tableName = "schedule_entries",
     foreignKeys = [ForeignKey(JobEntity::class, ["id"], ["jobId"], onDelete = ForeignKey.RESTRICT)],
-    indices = [Index("jobId"), Index("startMs")],
+    indices = [
+        Index("jobId"), Index("startMs"),
+        // Idempotência: uma marcação de vários dias grava uma linha por dia com o mesmo operationId.
+        Index(value = ["operationId", "startMs"], unique = true),
+    ],
 )
 data class ScheduleEntryEntity(
     @PrimaryKey val id: String,
+    /** Null nas reservas criadas antes do esquema v2. */
+    val operationId: String? = null,
     val jobId: String,
     /** Intervalo semiaberto [startMs, endMs). */
     val startMs: Long,
