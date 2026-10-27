@@ -1,5 +1,6 @@
 package pt.obraemdia.app.ui.forms
 
+import androidx.compose.material.icons.automirrored.filled.CallSplit
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -224,7 +225,7 @@ fun ExpenseScreen(vm: AppViewModel, snapshot: Snapshot, initialJobId: String?, o
             Chip(vatTreatment == VatTreatment.NOT_RECOVERABLE, "Não") { vatTreatment = VatTreatment.NOT_RECOVERABLE }
         }
 
-        SectionCard("A que se refere", caption = "O documento conta uma vez; as parcelas só o distribuem.") {
+        SectionCard(icon = Icons.AutoMirrored.Filled.CallSplit, title = "A que se refere", caption = "O documento conta uma vez; as parcelas só o distribuem.") {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Chip(assign == Assign.ONE_JOB, "Uma obra") { assign = Assign.ONE_JOB }
                 Chip(assign == Assign.GENERAL, "Despesa geral") { assign = Assign.GENERAL }

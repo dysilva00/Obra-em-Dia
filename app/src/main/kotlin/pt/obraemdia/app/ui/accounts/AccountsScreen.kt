@@ -1,5 +1,12 @@
 package pt.obraemdia.app.ui.accounts
 
+import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
+import androidx.compose.material.icons.filled.Insights
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -17,6 +24,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import pt.obraemdia.app.ui.components.listRowColors
 import pt.obraemdia.app.data.db.CashKind
 import pt.obraemdia.app.data.db.CashMovementEntity
 import pt.obraemdia.app.data.db.PaymentMethod
@@ -98,7 +106,7 @@ fun AccountsScreen(
 
     LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
-            SectionCard("Resumo de ${month.label()}", caption = "Real · movimentos efetivos") {
+            SectionCard(icon = Icons.Filled.Insights, title = "Resumo de ${month.label()}", caption = "Real · movimentos efetivos") {
                 LabelValue("Recebimentos", received.format(), AppColors.Positive)
                 LabelValue("Pagamentos", paid.format())
                 LabelValue("Saldo do mês", (received - paid).format())
@@ -110,8 +118,7 @@ fun AccountsScreen(
             }
         }
         item {
-            SectionCard(
-                "Por pagar a fornecedores",
+            SectionCard(icon = Icons.AutoMirrored.Filled.ReceiptLong, title = "Por pagar a fornecedores",
                 caption = "Posição em ${today.shortLabel()} · compras registadas e ainda não pagas",
             ) {
                 LabelValue("Total", snapshot.toPaySuppliers.format())
@@ -138,7 +145,7 @@ fun AccountsScreen(
         }
         if (unclassified.isNotEmpty()) {
             item {
-                SectionCard("Por classificar", caption = "Partes de documentos ainda sem obra nem despesa geral") {
+                SectionCard(icon = Icons.AutoMirrored.Filled.HelpOutline, title = "Por classificar", caption = "Partes de documentos ainda sem obra nem despesa geral") {
                     unclassified.forEach { st ->
                         LabelValue("${st.doc.supplierName ?: "Sem fornecedor"} · ${st.doc.docDate.shortLabel()}", st.unallocated.format())
                     }
@@ -159,10 +166,10 @@ fun AccountsScreen(
             item { Text("Ainda não há movimentos registados.") }
         }
         item {
-            SectionCard("Compras", caption = "Documentos registados · toque para anular um documento errado") {
+            SectionCard(icon = Icons.Filled.ShoppingCart, title = "Compras", caption = "Documentos registados · toque para anular um documento errado") {
                 if (snapshot.purchaseStatus.isEmpty()) Text("Ainda não há compras registadas.")
                 snapshot.purchaseStatus.take(15).forEach { st ->
-                    TextButton(onClick = { voiding = st }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                    TextButton(onClick = { voiding = st }, colors = listRowColors(), modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
                         Column(Modifier.fillMaxWidth()) {
                             Text("${st.doc.supplierName ?: "Sem fornecedor"} · ${st.gross.format()}", style = MaterialTheme.typography.bodyLarge)
                             Text(
@@ -188,6 +195,13 @@ fun AccountsScreen(
                     .padding(vertical = 6.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    val inflow = m.signedCents > 0
+                    pt.obraemdia.app.ui.components.IconTile(
+                        if (inflow) Icons.Filled.ArrowDownward else Icons.Filled.ArrowUpward,
+                        container = if (inflow) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+                        content = if (inflow) AppColors.Positive else MaterialTheme.colorScheme.onSurfaceVariant,
+                        size = 36.dp,
+                    )
                     Column(Modifier.weight(1f)) {
                         Text(
                             (if (m.isReversal) "Estorno · " else "") + listOfNotNull(m.kind.label, m.counterparty).joinToString(" — ") + if (reversed) " (estornado)" else "",

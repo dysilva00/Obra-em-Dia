@@ -3,6 +3,8 @@ agp = "9.4.1"
 kotlin = "2.4.21"
 ksp = "2.3.12"
 composeBom = "2026.09.00"
+# Material 3 Expressive: ainda em beta (o BOM traz a 1.4.0 estável). Rever quando sair a 1.5.0 estável.
+material3 = "1.5.0-beta02"
 activityCompose = "1.13.0"
 coreKtx = "1.19.1"
 lifecycle = "2.11.0"
@@ -28,7 +30,7 @@ compose-bom = { module = "androidx.compose:compose-bom", version.ref = "composeB
 compose-ui = { module = "androidx.compose.ui:ui" }
 compose-ui-tooling = { module = "androidx.compose.ui:ui-tooling" }
 compose-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview" }
-compose-material3 = { module = "androidx.compose.material3:material3" }
+compose-material3 = { module = "androidx.compose.material3:material3", version.ref = "material3" }
 compose-material-icons = { module = "androidx.compose.material:material-icons-extended" }
 room-runtime = { module = "androidx.room:room-runtime", version.ref = "room" }
 room-ktx = { module = "androidx.room:room-ktx", version.ref = "room" }

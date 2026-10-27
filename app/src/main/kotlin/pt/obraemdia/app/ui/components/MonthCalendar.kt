@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -148,7 +149,8 @@ private fun DayCell(day: LocalDate, mark: DayMark, isToday: Boolean, isSelected:
 @Composable
 private fun Legend() {
     val scheme = MaterialTheme.colorScheme
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
+    // FlowRow: com letra grande a legenda passa para a linha seguinte em vez de esmagar o texto.
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.padding(top = 4.dp)) {
         LegendItem(Modifier.background(scheme.primaryContainer, RoundedCornerShape(3.dp)), "Marcado")
         LegendItem(Modifier.border(2.dp, scheme.primary, RoundedCornerShape(3.dp)), "Pré-reserva")
         Text("! Sobreposição", style = MaterialTheme.typography.labelSmall, color = AppColors.Amber)

@@ -1,5 +1,10 @@
 package pt.obraemdia.app.ui.settings
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Science
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.EventBusy
+import androidx.compose.material.icons.filled.Business
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -60,7 +65,7 @@ fun SettingsScreen(vm: AppViewModel, snapshot: Snapshot, timeOff: List<TimeOffEn
         snapshot.workers.forEach { w -> WorkerCard(vm, w, onMessage) }
         BusinessCard(vm, snapshot, onMessage)
         TimeOffCard(vm, snapshot, timeOff, onMessage)
-        SectionCard("Dados de demonstração", caption = "Obras, horas e contas fictícias para experimentar") {
+        SectionCard(icon = Icons.Filled.Science, title = "Dados de demonstração", caption = "Obras, horas e contas fictícias para experimentar") {
             if (snapshot.hasDemoData) {
                 Text("Use \"Remover\" na faixa amarela do topo para os apagar antes de começar a usar a sério.", style = MaterialTheme.typography.bodyMedium)
             } else {
@@ -81,7 +86,7 @@ private fun WorkerCard(vm: AppViewModel, w: WorkerEntity, onMessage: (String) ->
     val costMoney = Money.parse(cost)?.takeIf { !it.isNegative }
     val changed = name.trim() != w.name || saleMoney?.cents != w.defaultSaleRateCents || costMoney?.cents != w.defaultCostRateCents
 
-    SectionCard(w.name, caption = "Taxas habituais: só pré-preenchem novos registos de horas") {
+    SectionCard(w.name, icon = Icons.Filled.Person, caption = "Taxas habituais: só pré-preenchem novos registos de horas") {
         OutlinedTextField(name, { name = it }, label = { Text("Nome") }, singleLine = true, modifier = Modifier.fillMaxWidth())
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedTextField(
@@ -125,7 +130,7 @@ private fun BusinessCard(vm: AppViewModel, snapshot: Snapshot, onMessage: (Strin
     val marginMin = margin.toIntOrNull()?.takeIf { it in 0..240 }
     val hours = runCatching { WorkHours(parseTime(ms)!!, parseTime(me)!!, parseTime(asT)!!, parseTime(ae)!!) }.getOrNull()
 
-    SectionCard("Atividade", caption = "Valores provisórios até serem confirmados") {
+    SectionCard(icon = Icons.Filled.Business, title = "Atividade", caption = "Valores provisórios até serem confirmados") {
         OutlinedTextField(
             opening, { opening = it }, label = { Text("Saldo inicial (€)") }, singleLine = true, isError = openingMoney == null,
             supportingText = { Text("Ponto de partida do saldo acumulado; não é o saldo bancário.") },
@@ -175,7 +180,7 @@ private fun TimeOffCard(vm: AppViewModel, snapshot: Snapshot, timeOff: List<Time
     val scope = rememberCoroutineScope()
     fun day(ms: Long): LocalDate = Instant.ofEpochMilli(ms).atZone(AGENDA_ZONE).toLocalDate()
 
-    SectionCard("Indisponibilidades", caption = "Férias, consultas, descanso. Contam nos conflitos da agenda.") {
+    SectionCard(icon = Icons.Filled.EventBusy, title = "Indisponibilidades", caption = "Férias, consultas, descanso. Contam nos conflitos da agenda.") {
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             snapshot.workers.forEach { w -> FilterChip(worker == w.id, { worker = w.id }, { Text(w.name) }, Modifier.heightIn(min = 48.dp)) }
         }

@@ -11,7 +11,12 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Construction
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ShortNavigationBar
+import androidx.compose.material3.ShortNavigationBarItem
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -102,7 +107,7 @@ private fun NavDestination?.title(): String = when {
     else -> tabs.firstOrNull { hasRoute(it.routeClass) }?.label.orEmpty()
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun AppNavigation() {
     val context = LocalContext.current
@@ -134,7 +139,8 @@ fun AppNavigation() {
         topBar = {
             Column {
                 TopAppBar(
-                    title = { Text(destination.title()) },
+                    title = { Text(destination.title(), style = if (currentTab != null) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.titleLarge) },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
                     navigationIcon = {
                         if (currentTab == null && destination != null) {
                             IconButton(onClick = { nav.popBackStack() }) {
@@ -157,9 +163,9 @@ fun AppNavigation() {
         },
         bottomBar = {
             if (currentTab != null) {
-                NavigationBar {
+                ShortNavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
                     tabs.forEach { tab ->
-                        NavigationBarItem(
+                        ShortNavigationBarItem(
                             selected = currentTab == tab,
                             onClick = {
                                 nav.navigate(tab.route) {
@@ -179,7 +185,7 @@ fun AppNavigation() {
     ) { padding ->
         val snap = snapshot
         if (snap == null) {
-            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) { LoadingIndicator() }
             return@Scaffold
         }
         NavHost(nav, startDestination = HomeRoute, modifier = Modifier.padding(padding)) {

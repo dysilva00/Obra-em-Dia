@@ -1,5 +1,6 @@
 package pt.obraemdia.app.ui.forms
 
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -204,7 +205,7 @@ fun BookingScreen(vm: AppViewModel, snapshot: Snapshot, initialJobId: String?, i
         }
 
         if (conflicts.isNotEmpty() && job != null) {
-            SectionCard("Sobreposições", caption = "Nada é movido automaticamente. Escolha uma opção:") {
+            SectionCard(icon = Icons.Filled.Warning, title = "Sobreposições", caption = "Nada é movido automaticamente. Escolha uma opção:") {
                 conflicts.forEach { WarningBox(it.describe(snapshot)) }
 
                 val firstFree = slotFor(days.first())?.let { _ ->

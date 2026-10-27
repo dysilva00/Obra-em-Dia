@@ -1,5 +1,10 @@
 package pt.obraemdia.app.ui.accounts
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ShowChart
+import androidx.compose.material.icons.filled.Lightbulb
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -73,8 +78,7 @@ fun ForecastScreen(vm: AppViewModel, snapshot: Snapshot) {
             }
         }
         item {
-            SectionCard(
-                "Saldo previsto a ${result.horizonEnd.shortLabel()}",
+            SectionCard(icon = Icons.AutoMirrored.Filled.ShowChart, title = "Saldo previsto a ${result.horizonEnd.shortLabel()}",
                 caption = "PREVISTO · " + if (proposals) "cenário com propostas" else "cenário confirmado",
             ) {
                 Text(result.endBalance.format(), style = MoneyLarge)
@@ -90,7 +94,7 @@ fun ForecastScreen(vm: AppViewModel, snapshot: Snapshot) {
         }
         if (result.isIncomplete) {
             item {
-                SectionCard("Previsão incompleta", caption = "Valores em falta não são tratados como zero") {
+                SectionCard(icon = Icons.Filled.Info, title = "Previsão incompleta", caption = "Valores em falta não são tratados como zero") {
                     result.unknowns.forEach { Text("• $it", style = MaterialTheme.typography.bodyMedium) }
                     result.undated.forEach { Text("• ${it.label}: ${it.amount.format()} sem data", style = MaterialTheme.typography.bodyMedium) }
                 }
@@ -98,7 +102,7 @@ fun ForecastScreen(vm: AppViewModel, snapshot: Snapshot) {
         }
         if (result.months.size > 1) {
             item {
-                SectionCard("Por mês", caption = "Previsto") {
+                SectionCard(icon = Icons.Filled.CalendarMonth, title = "Por mês", caption = "Previsto") {
                     result.months.forEach { m ->
                         LabelValue(m.month.label(), "+${m.inflow.format()} / −${m.outflow.format()}")
                     }
@@ -116,7 +120,7 @@ fun ForecastScreen(vm: AppViewModel, snapshot: Snapshot) {
         if (result.included.isEmpty()) item { Text("Nada previsto neste período.") }
         items(result.included, key = { it.id }) { item -> ForecastRow(item, today) { postponed[item.id] = it } }
         item {
-            SectionCard("Pressupostos", caption = "Como esta previsão foi feita") {
+            SectionCard(icon = Icons.Filled.Lightbulb, title = "Pressupostos", caption = "Como esta previsão foi feita") {
                 assumptions.forEach { Text("• $it", style = MaterialTheme.typography.bodySmall) }
             }
         }

@@ -1,5 +1,8 @@
 package pt.obraemdia.app.ui.forms
 
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.automirrored.filled.FactCheck
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -59,7 +62,7 @@ private fun Long?.money() = this?.let { Money(it).format() } ?: "Por definir"
 
 @Composable
 private fun BalanceCard(title: String, caption: String, b: ClosureBalance) {
-    SectionCard(title, caption = caption) {
+    SectionCard(title, caption = caption, icon = Icons.AutoMirrored.Filled.ReceiptLong) {
         LabelValue("Venda sem IVA", b.saleNetCents.money())
         LabelValue("Total devido com IVA", b.dueGrossCents.money())
         LabelValue("Recebido", Money(b.receivedCents).format(), AppColors.Positive)
@@ -100,7 +103,7 @@ fun ClosureScreen(vm: AppViewModel, snapshot: Snapshot, jobId: String, onMessage
 
         if (closed) {
             val current = closures.first()
-            SectionCard("Obra encerrada", caption = "Revisão ${current.revision} · ${current.closedAt.stamp()}") {
+            SectionCard("Obra encerrada", icon = Icons.Filled.Lock, caption = "Revisão ${current.revision} · ${current.closedAt.stamp()}") {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Filled.Lock, contentDescription = null)
                     Text(
@@ -115,7 +118,7 @@ fun ClosureScreen(vm: AppViewModel, snapshot: Snapshot, jobId: String, onMessage
         } else {
             review?.let { r -> BalanceCard("Balanço atual", "Calculado agora a partir dos registos", r.balance) }
 
-            SectionCard("Verificação", caption = "Encerrar é uma ação explícita; concluir o trabalho não basta.") {
+            SectionCard(icon = Icons.AutoMirrored.Filled.FactCheck, title = "Verificação", caption = "Encerrar é uma ação explícita; concluir o trabalho não basta.") {
                 val statusOk = summary.job.status == JobStatus.COMPLETED
                 Check(statusOk, if (statusOk) "Trabalho concluído" else "O trabalho ainda não está \"Concluída\" (mude o estado na ficha)")
                 val bal = summary.balance?.balance
@@ -174,7 +177,8 @@ fun ClosureScreen(vm: AppViewModel, snapshot: Snapshot, jobId: String, onMessage
             closures.forEach { c ->
                 val b = vm.decodeBalance(c)
                 SectionCard(
-                    "Revisão ${c.revision}",
+                    icon = Icons.Filled.History,
+                    title = "Revisão ${c.revision}",
                     caption = "Encerrada a ${c.closedAt.stamp()}" + (c.reopenedAt?.let { " · reaberta a ${it.stamp()}: ${c.reopenReason}" } ?: ""),
                 ) {
                     b?.let {

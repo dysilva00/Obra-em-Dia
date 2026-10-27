@@ -94,3 +94,11 @@ Registo das escolhas reversíveis tomadas durante o desenvolvimento. A especific
 - **Galeria:** usa o Photo Picker do Android, sem permissão de armazenamento.
 - **Obras encerradas:** fotos, notas e checklist não têm impacto financeiro e podem ser alteradas mesmo com a obra encerrada.
 - **Remover:** remover uma foto, nota ou item usa eliminação lógica e fica no histórico. Remover a demonstração apaga também os ficheiros, só depois de a transação terminar bem.
+
+## Design
+
+- **Material 3 Expressive:** usa `MaterialExpressiveTheme` com `MotionScheme.expressive()`, `ShortNavigationBar` e `LoadingIndicator`. Exige `androidx.compose.material3:material3:1.5.0-beta02`, fixado no catálogo por cima do BOM (que traz a 1.4.0 estável). **Passar para a 1.5.0 estável quando sair.** Os componentes experimentais usam `@OptIn(ExperimentalMaterial3ExpressiveApi::class)`.
+- **Tipografia:** Plus Jakarta Sans, uma fonte variável incluída em `res/font` (licença OFL em `assets/licenses/`), por isso funciona sem internet. Os valores em euros usam algarismos tabulares (`tnum`).
+- **Cor e superfícies:** verde-petróleo como cor principal e âmbar nos avisos. Os cartões são camadas tonais com contorno subtil, sem sombra, e cantos de 18–32 dp. Só existe tema claro, pensado para uso no exterior.
+- **Início:** um cartão de destaque em degradê junta o saldo acumulado, o mês e os movimentos do mês. As três ações principais são mosaicos grandes.
+- **Acessibilidade:** com a letra a mais de 115 %, as filas de quatro ações passam a grelha 2×2. Legendas e filas de botões usam `FlowRow` para passarem à linha seguinte em vez de partirem palavras. O mínimo de 48 dp nos alvos de toque mantém-se.

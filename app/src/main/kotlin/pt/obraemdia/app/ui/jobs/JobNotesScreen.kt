@@ -5,6 +5,9 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material.icons.automirrored.filled.StickyNote2
+import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -155,7 +158,7 @@ private fun PhotosSection(media: Media, photos: List<AttachmentEntity>, actions:
     val shown = photos.filter { it.kind != AttachmentKind.DOCUMENT && (filter == null || it.kind == filter) }
     val newKind = filter ?: AttachmentKind.DURING
 
-    SectionCard("Fotografias", caption = "${photos.size} · guardadas só neste telemóvel (incluídas no backup)") {
+    SectionCard(icon = Icons.Filled.PhotoCamera, title = "Fotografias", caption = "${photos.size} · guardadas só neste telemóvel (incluídas no backup)") {
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FilterChip(filter == null, { filter = null }, { Text("Todas") }, Modifier.heightIn(min = 48.dp))
             photoKinds.forEach { k -> FilterChip(filter == k, { filter = k }, { Text(k.label) }, Modifier.heightIn(min = 48.dp)) }
@@ -244,7 +247,7 @@ private fun ChecklistSection(
 ) {
     val items = all.filter { it.kind == kind }
     var text by rememberSaveable(kind) { mutableStateOf("") }
-    SectionCard(title, caption = "${items.count { !it.done }} por fazer · ${items.count { it.done }} feito(s)") {
+    SectionCard(title, icon = if (kind == ChecklistKind.TASK) Icons.Filled.Checklist else Icons.Filled.ShoppingCart, caption = "${items.count { !it.done }} por fazer · ${items.count { it.done }} feito(s)") {
         items.forEach { i ->
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Row(
@@ -273,7 +276,7 @@ private fun ChecklistSection(
 private fun NotesSection(notes: List<NoteEntity>, onAdd: (String) -> Unit, onUpdate: (String, String) -> Unit, onRemove: (String) -> Unit) {
     var text by rememberSaveable { mutableStateOf("") }
     var editing by remember { mutableStateOf<NoteEntity?>(null) }
-    SectionCard("Notas", caption = "Toque numa nota para a corrigir") {
+    SectionCard(icon = Icons.AutoMirrored.Filled.StickyNote2, title = "Notas", caption = "Toque numa nota para a corrigir") {
         OutlinedTextField(text, { text = it }, label = { Text("Nova nota") }, minLines = 2, modifier = Modifier.fillMaxWidth())
         Button(enabled = text.isNotBlank(), onClick = { onAdd(text); text = "" }, modifier = Modifier.heightIn(min = 48.dp)) { Text("Gravar nota") }
         notes.forEach { n ->

@@ -1,5 +1,12 @@
 package pt.obraemdia.app.ui.jobs
 
+import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material.icons.filled.EventAvailable
+import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Euro
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -27,6 +34,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import pt.obraemdia.app.ui.components.ShortcutRow
+import pt.obraemdia.app.ui.components.CompactAction
+import pt.obraemdia.app.ui.components.listRowColors
 import pt.obraemdia.app.data.db.ChargeKind
 import pt.obraemdia.app.data.db.JobChargeEntity
 import pt.obraemdia.app.data.db.TimeEntryEntity
@@ -211,26 +221,34 @@ fun JobDetailScreen(
             }
         }
         item {
-            // FlowRow: com letra grande, os botões passam para a linha seguinte em vez de partir palavras.
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilledTonalButton(onClick = onRecordTime, enabled = !closed, modifier = Modifier.heightIn(min = 48.dp)) { Text("Horas", softWrap = false) }
-                FilledTonalButton(onClick = onAddExpense, enabled = !closed, modifier = Modifier.heightIn(min = 48.dp)) { Text("Gasto", softWrap = false) }
-                FilledTonalButton(onClick = onRecordPayment, enabled = !closed, modifier = Modifier.heightIn(min = 48.dp)) { Text("Pagamento", softWrap = false) }
-                FilledTonalButton(onClick = onSchedule, enabled = !closed, modifier = Modifier.heightIn(min = 48.dp)) { Text("Agendar", softWrap = false) }
+            val actions = listOf(
+                Triple("Horas", Icons.Filled.Schedule, onRecordTime),
+                Triple("Gasto", Icons.Filled.ShoppingCart, onAddExpense),
+                Triple("Receber", Icons.Filled.Euro, onRecordPayment),
+                Triple("Agendar", Icons.Filled.EventAvailable, onSchedule),
+            )
+            // Com letra grande (acessibilidade), 2×2 em vez de 4 numa linha, para nenhuma palavra ser partida.
+            val perRow = if (androidx.compose.ui.platform.LocalDensity.current.fontScale > 1.15f) 2 else 4
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                actions.chunked(perRow).forEach { row ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        row.forEach { (label, icon, action) -> CompactAction(label, icon, action, Modifier.weight(1f), enabled = !closed) }
+                    }
+                }
             }
         }
         item {
             val c = mediaCounts
-            OutlinedButton(onClick = onNotes, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
-                Text(
-                    "Notas, fotos e checklist" + if (c != null) " (${c.photos} foto(s) · ${c.notes} nota(s) · ${c.openItems} por fazer)" else "",
-                )
-            }
+            ShortcutRow(
+                title = "Notas, fotos e checklist",
+                subtitle = c?.let { "${it.photos} foto(s) · ${it.notes} nota(s) · ${it.openItems} por fazer" },
+                icon = Icons.Filled.PhotoLibrary,
+                onClick = onNotes,
+            )
         }
         item {
             val upcoming = bookedDays.count { it >= today }
-            SectionCard(
-                "Dias marcados",
+            SectionCard(icon = Icons.Filled.CalendarMonth, title = "Dias marcados",
                 caption = if (bookedDays.isEmpty()) "Ainda sem dias marcados" else "${bookedDays.size} dia(s) · $upcoming a partir de hoje",
             ) {
                 MonthCalendar(
@@ -266,7 +284,7 @@ fun JobDetailScreen(
                 BillingMode.HOURLY -> "À hora"
             }
             val vat = job.vatRateBp?.let { "IVA ${Vat.label(it)}" } ?: "IVA por definir"
-            SectionCard("Cliente e pagamentos", caption = "$mode · $vat") {
+            SectionCard(icon = Icons.Filled.Euro, title = "Cliente e pagamentos", caption = "$mode · $vat") {
                 LabelValue("Valor sem IVA", s.saleNet?.format() ?: "Por definir")
                 LabelValue("Total devido com IVA", s.dueGross?.format() ?: "Por definir")
                 LabelValue("Recebido", s.received.format(), AppColors.Positive)
@@ -289,7 +307,7 @@ fun JobDetailScreen(
         }
         item { InstallmentsSection(snapshot, s, closed, today, onAddInstallment, onRemoveInstallment, onMessage) }
         item {
-            SectionCard("Horas", caption = "Real · ${s.entries.size} registo(s)") {
+            SectionCard(icon = Icons.Filled.Schedule, title = "Horas", caption = "Real · ${s.entries.size} registo(s)") {
                 LabelValue("Total horas-pessoa", formatMinutes(s.minutes))
                 snapshot.workers.forEach { w ->
                     val mine = s.entries.filter { it.workerId == w.id }
@@ -301,6 +319,7 @@ fun JobDetailScreen(
                 s.entries.sortedByDescending { it.date }.take(12).forEach { e ->
                     TextButton(
                         onClick = { editing = e },
+                        colors = listRowColors(),
                         enabled = !closed,
                         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                     ) {
@@ -317,7 +336,7 @@ fun JobDetailScreen(
             }
         }
         item {
-            SectionCard("Resultado de gestão", caption = "Antes de impostos sobre o rendimento · não é um valor fiscal") {
+            SectionCard(icon = Icons.AutoMirrored.Filled.TrendingUp, title = "Resultado de gestão", caption = "Antes de impostos sobre o rendimento · não é um valor fiscal") {
                 val r = s.result
                 if (r == null) {
                     Text("Sem valor de venda definido.")

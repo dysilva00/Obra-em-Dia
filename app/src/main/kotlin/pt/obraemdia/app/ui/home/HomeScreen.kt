@@ -1,6 +1,24 @@
 package pt.obraemdia.app.ui.home
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.filled.AccountBalanceWallet
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.Construction
+import androidx.compose.material.icons.filled.NotificationsActive
+import androidx.compose.material.icons.filled.Today
+import androidx.compose.material3.Surface
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextAlign
+import pt.obraemdia.app.ui.components.listRowColors
+import pt.obraemdia.app.ui.components.IconTile
+import pt.obraemdia.app.ui.theme.TabularNumbers
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -80,22 +98,23 @@ fun HomeScreen(
         modifier = Modifier.fillMaxWidth(),
     ) {
         item {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                IconButton(onClick = { month = month.minusMonths(1) }) {
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Mês anterior")
-                }
-                Text(month.label(), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-                IconButton(onClick = { month = month.plusMonths(1) }) {
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Mês seguinte")
-                }
-            }
+            HeroBalance(
+                balance = snapshot.accumulatedBalance(today),
+                opening = snapshot.openingBalance,
+                today = today,
+                month = month,
+                received = received,
+                paid = paid,
+                onPrev = { month = month.minusMonths(1) },
+                onNext = { month = month.plusMonths(1) },
+            )
         }
 
         item { QuickActions(onRecordTime, onRecordPayment, onAddExpense) }
 
         if (alerts.isNotEmpty()) {
             item {
-                SectionCard("Alertas", caption = "${alerts.size} a ver") {
+                SectionCard("Alertas", caption = "${alerts.size} a ver", icon = Icons.Filled.NotificationsActive) {
                     alerts.take(6).forEach { a ->
                         TextButton(
                             onClick = { a.jobId?.let(onOpenJob) },
@@ -123,22 +142,7 @@ fun HomeScreen(
         }
 
         item {
-            SectionCard("Saldo acumulado", caption = "Real · em ${today.shortLabel()} · movimentos registados na app, não é o saldo bancário") {
-                Text(snapshot.accumulatedBalance(today).format(), style = MoneyLarge)
-                LabelValue("Saldo inicial", snapshot.openingBalance.format())
-            }
-        }
-
-        item {
-            SectionCard("Movimentos do mês", caption = "Real · ${month.label()}") {
-                LabelValue("Recebido", received.format(), AppColors.Positive)
-                LabelValue("Pago", paid.format())
-                LabelValue("Saldo do mês", (received - paid).format())
-            }
-        }
-
-        item {
-            SectionCard("Em aberto", caption = "Posição em ${today.shortLabel()} · não são movimentos do mês") {
+            SectionCard("Em aberto", caption = "Posição em ${today.shortLabel()} · não são movimentos do mês", icon = Icons.Filled.AccountBalanceWallet) {
                 LabelValue("Por receber de clientes", toReceive.format())
                 LabelValue("Por pagar a fornecedores", snapshot.toPaySuppliers.format())
                 if (unknownDue > 0) {
@@ -153,11 +157,11 @@ fun HomeScreen(
         }
 
         item {
-            SectionCard("Hoje", caption = today.longLabel()) {
+            SectionCard("Hoje", caption = today.longLabel(), icon = Icons.Filled.Today) {
                 if (todayItems.isEmpty()) Text("Sem marcações para hoje.")
                 todayItems.forEach { item ->
                     val b = item.booking
-                    TextButton(onClick = { onOpenJob(b.jobId) }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                    TextButton(onClick = { onOpenJob(b.jobId) }, colors = listRowColors(), modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
                         Column(Modifier.fillMaxWidth()) {
                             Text(b.label, style = MaterialTheme.typography.bodyLarge)
                             Text(
@@ -172,7 +176,7 @@ fun HomeScreen(
         }
 
         item {
-            SectionCard("Horas registadas", caption = "Real · ${month.label()}") {
+            SectionCard("Horas registadas", caption = "Real · ${month.label()}", icon = Icons.Filled.Schedule) {
                 snapshot.workers.forEach { w ->
                     LabelValue(w.name, formatMinutes(monthEntries.filter { it.workerId == w.id }.sumOf { it.minutes }))
                 }
@@ -180,7 +184,7 @@ fun HomeScreen(
         }
 
         item {
-            SectionCard("Obras") {
+            SectionCard("Obras", icon = Icons.Filled.Construction) {
                 LabelValue("Em curso", summaries.count { it.job.status == JobStatus.IN_PROGRESS }.toString())
                 LabelValue("Por confirmar", summaries.count { it.job.status == JobStatus.TO_CONFIRM }.toString())
                 LabelValue("Em espera", summaries.count { it.job.status == JobStatus.ON_HOLD }.toString())
@@ -193,22 +197,107 @@ fun HomeScreen(
     }
 }
 
+/**
+ * Cartão de destaque: saldo acumulado (real) e movimentos do mês escolhido.
+ * Texto branco sobre verde-petróleo escuro: contraste alto também ao sol.
+ */
+@Composable
+private fun HeroBalance(
+    balance: Money,
+    opening: Money,
+    today: java.time.LocalDate,
+    month: YearMonth,
+    received: Money,
+    paid: Money,
+    onPrev: () -> Unit,
+    onNext: () -> Unit,
+) {
+    val onHero = Color.White
+    val soft = Color.White.copy(alpha = 0.78f)
+    Box(
+        Modifier.fillMaxWidth()
+            .clip(MaterialTheme.shapes.extraLarge)
+            .background(AppColors.HeroGradient),
+    ) {
+        Column(Modifier.padding(horizontal = 22.dp, vertical = 20.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("Saldo acumulado", style = MaterialTheme.typography.titleSmall, color = soft)
+            Text(balance.format(), style = MoneyLarge, color = onHero)
+            Text(
+                "Real · em ${today.shortLabel()} · desde o saldo inicial de ${opening.format()}. Não é o saldo bancário.",
+                style = MaterialTheme.typography.bodySmall,
+                color = soft,
+            )
+            // Seletor do mês em pílula translúcida.
+            Surface(color = Color.White.copy(alpha = 0.14f), shape = CircleShape, modifier = Modifier.padding(top = 10.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onPrev) {
+                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Mês anterior", tint = onHero)
+                    }
+                    Text(month.label(), style = MaterialTheme.typography.titleSmall, color = onHero, textAlign = TextAlign.Center, modifier = Modifier.weight(1f))
+                    IconButton(onClick = onNext) {
+                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Mês seguinte", tint = onHero)
+                    }
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(top = 4.dp)) {
+                HeroStat("Recebido", received, Icons.Filled.ArrowDownward, Modifier.weight(1f))
+                HeroStat("Pago", paid, Icons.Filled.ArrowUpward, Modifier.weight(1f))
+            }
+            Text(
+                "Saldo do mês ${(received - paid).format()}",
+                style = MaterialTheme.typography.labelLarge.merge(TabularNumbers),
+                color = onHero,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun HeroStat(label: String, value: Money, icon: ImageVector, modifier: Modifier) {
+    Surface(color = Color.White.copy(alpha = 0.12f), shape = MaterialTheme.shapes.medium, modifier = modifier) {
+        Column(Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(icon, contentDescription = null, tint = Color.White.copy(alpha = 0.8f), modifier = Modifier.size(16.dp))
+                Text(" $label", style = MaterialTheme.typography.labelMedium, color = Color.White.copy(alpha = 0.8f))
+            }
+            Text(value.format(), style = MaterialTheme.typography.titleMedium.merge(TabularNumbers), color = Color.White)
+        }
+    }
+}
+
+/** As três ações principais: grandes, fáceis de acertar com o polegar e com luvas. */
 @Composable
 private fun QuickActions(onRecordTime: () -> Unit, onRecordPayment: () -> Unit, onAddExpense: () -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Button(onClick = onRecordTime, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Button(
+            onClick = onRecordTime,
+            shape = MaterialTheme.shapes.large,
+            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 18.dp),
+            modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp),
+        ) {
             Icon(Icons.Filled.Schedule, contentDescription = null)
-            Text("  Registar horas")
+            Text("  Registar horas", style = MaterialTheme.typography.titleMedium)
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilledTonalButton(onClick = onAddExpense, modifier = Modifier.weight(1f).heightIn(min = 56.dp)) {
-                Icon(Icons.Filled.ShoppingCart, contentDescription = null)
-                Text("  Gasto", softWrap = false)
-            }
-            FilledTonalButton(onClick = onRecordPayment, modifier = Modifier.weight(1f).heightIn(min = 56.dp)) {
-                Icon(Icons.Filled.Euro, contentDescription = null)
-                Text("  Pagamento", softWrap = false)
-            }
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            ActionTile("Adicionar gasto", Icons.Filled.ShoppingCart, onAddExpense, Modifier.weight(1f))
+            ActionTile("Registar pagamento", Icons.Filled.Euro, onRecordPayment, Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+private fun ActionTile(label: String, icon: ImageVector, onClick: () -> Unit, modifier: Modifier) {
+    Surface(
+        onClick = onClick,
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+        shape = MaterialTheme.shapes.large,
+        modifier = modifier.heightIn(min = 96.dp),
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            IconTile(icon, container = MaterialTheme.colorScheme.surfaceContainerLowest, content = MaterialTheme.colorScheme.primary, size = 36.dp)
+            Text(label, style = MaterialTheme.typography.titleSmall)
         }
     }
 }

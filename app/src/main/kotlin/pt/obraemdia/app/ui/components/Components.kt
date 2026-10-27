@@ -1,5 +1,7 @@
 package pt.obraemdia.app.ui.components
 
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -50,6 +52,11 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.text.font.FontWeight
+import pt.obraemdia.app.ui.theme.TabularNumbers
 import pt.obraemdia.app.ui.theme.AppColors
 import pt.obraemdia.domain.job.JobStatus
 import pt.obraemdia.domain.job.Priority
@@ -59,12 +66,17 @@ import pt.obraemdia.domain.job.label
 @Composable
 fun DemoBanner(onRemove: () -> Unit, modifier: Modifier = Modifier) {
     var confirm by remember { mutableStateOf(false) }
-    Surface(color = MaterialTheme.colorScheme.tertiaryContainer, modifier = modifier.fillMaxWidth()) {
+    // Pílula discreta por baixo da barra de topo (continua sempre visível).
+    Surface(
+        color = MaterialTheme.colorScheme.tertiaryContainer,
+        shape = CircleShape,
+        modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+    ) {
         Row(Modifier.padding(start = 16.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Filled.Science, contentDescription = null, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(8.dp))
             Text(
-                "Inclui DADOS DE DEMONSTRAÇÃO fictícios",
+                "Dados de demonstração",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onTertiaryContainer,
                 modifier = Modifier.weight(1f),
@@ -173,34 +185,58 @@ fun DateField(label: String, date: LocalDate, today: LocalDate, onChange: (Local
     }
 }
 
+/** Ícone num mosaico arredondado, usado no cabeçalho dos cartões. */
+@Composable
+fun IconTile(
+    icon: ImageVector,
+    container: Color = MaterialTheme.colorScheme.primaryContainer,
+    content: Color = MaterialTheme.colorScheme.onPrimaryContainer,
+    size: Dp = 40.dp,
+) {
+    Surface(color = container, contentColor = content, shape = RoundedCornerShape(size * 0.34f), modifier = Modifier.size(size)) {
+        Box(contentAlignment = Alignment.Center) { Icon(icon, contentDescription = null, modifier = Modifier.size(size * 0.55f)) }
+    }
+}
+
+/** Cartão de secção: camada tonal com contorno subtil (sem sombra), ícone opcional. */
 @Composable
 fun SectionCard(
     title: String,
     modifier: Modifier = Modifier,
     caption: String? = null,
+    icon: ImageVector? = null,
     content: @Composable () -> Unit,
 ) {
-    Card(
+    Surface(
         modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surfaceContainerLowest,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)),
     ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
-            if (caption != null) {
-                Text(caption, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Column(Modifier.padding(horizontal = 20.dp, vertical = 18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (icon != null) {
+                    IconTile(icon)
+                    Spacer(Modifier.width(12.dp))
+                }
+                Column(Modifier.weight(1f)) {
+                    Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
+                    if (caption != null) {
+                        Text(caption, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
             }
             content()
         }
     }
 }
 
-/** Etiqueta com texto por extenso; a cor é apenas reforço. */
+/** Etiqueta em pílula com texto por extenso; a cor é apenas reforço. */
 @Composable
 fun Tag(text: String, container: Color, content: Color, icon: ImageVector? = null) {
-    Surface(color = container, contentColor = content, shape = MaterialTheme.shapes.small) {
+    Surface(color = container, contentColor = content, shape = CircleShape) {
         Row(
-            Modifier.padding(horizontal = 8.dp, vertical = 4.dp).heightIn(min = 20.dp),
+            Modifier.padding(horizontal = 12.dp, vertical = 6.dp).heightIn(min = 20.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (icon != null) {
@@ -240,14 +276,14 @@ fun PriorityTag(priority: Priority) {
 fun LabelValue(label: String, value: String, valueColor: Color = Color.Unspecified, modifier: Modifier = Modifier) {
     Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
-        Text(value, style = MaterialTheme.typography.bodyLarge, color = valueColor)
+        Text(value, style = MaterialTheme.typography.bodyLarge.merge(TabularNumbers).copy(fontWeight = FontWeight.SemiBold), color = valueColor)
     }
 }
 
 @Composable
 fun WarningBox(text: String, modifier: Modifier = Modifier) {
     Surface(color = AppColors.AmberContainer, shape = MaterialTheme.shapes.medium, modifier = modifier.fillMaxWidth()) {
-        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.Top) {
+        Row(Modifier.padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.Top) {
             Icon(Icons.Filled.Warning, contentDescription = "Aviso", tint = AppColors.Amber)
             Spacer(Modifier.width(8.dp))
             Text(text, style = MaterialTheme.typography.bodyMedium, color = AppColors.OnAmberContainer)
@@ -300,3 +336,50 @@ fun ReasonDialog(
 
 /** Ícone de aviso partilhado (âmbar no tema). */
 val WarningIcon: androidx.compose.ui.graphics.vector.ImageVector get() = Icons.Filled.Warning
+
+/** Cores de botões de texto usados como linhas de lista: texto normal, não "ligação". */
+@Composable
+fun listRowColors() = androidx.compose.material3.ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurface)
+
+/** Ação compacta (ícone por cima do texto) para filas de 3–4 ações. */
+@Composable
+fun CompactAction(label: String, icon: ImageVector, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
+    Surface(
+        onClick = onClick,
+        enabled = enabled,
+        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = if (enabled) 1f else 0.45f),
+        contentColor = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = if (enabled) 1f else 0.5f),
+        shape = MaterialTheme.shapes.medium,
+        modifier = modifier.heightIn(min = 72.dp),
+    ) {
+        Column(
+            Modifier.padding(vertical = 12.dp, horizontal = 4.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(24.dp))
+            Text(label, style = MaterialTheme.typography.labelMedium, maxLines = 2, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+        }
+    }
+}
+
+/** Atalho em linha inteira: ícone, título, descrição e seta. */
+@Composable
+fun ShortcutRow(title: String, subtitle: String?, icon: ImageVector, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Surface(
+        onClick = onClick,
+        color = MaterialTheme.colorScheme.surfaceContainerLowest,
+        shape = MaterialTheme.shapes.large,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)),
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Row(Modifier.padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+            IconTile(icon)
+            Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+                Text(title, style = MaterialTheme.typography.titleSmall)
+                subtitle?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            }
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}

@@ -2,6 +2,8 @@ package pt.obraemdia.app.ui.jobs
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.material.icons.filled.Handshake
+import androidx.compose.material.icons.filled.Event
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -24,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+import pt.obraemdia.app.ui.components.listRowColors
 import pt.obraemdia.app.data.db.ChargeKind
 import pt.obraemdia.app.data.db.JobChargeEntity
 import pt.obraemdia.app.data.repo.JobSummary
@@ -85,8 +88,7 @@ fun InstallmentsSection(
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     // Recebido aplicado por ordem de vencimento, só para mostrar o estado de cada prestação.
     var available = summary.received
-    SectionCard(
-        "Plano de pagamentos",
+    SectionCard(icon = Icons.Filled.Event, title = "Plano de pagamentos",
         caption = summary.dueGross?.let { "Planeado ${planned.format()} de ${it.format()} (com IVA)" } ?: "Total devido por definir",
     ) {
         if (list.isEmpty()) Text("Sem prestações. A previsão usa o último dia marcado como hipótese.", style = MaterialTheme.typography.bodySmall)
@@ -188,7 +190,7 @@ fun AgreementSection(
     val charges = snapshot.charges.filter { it.jobId == job.id }
     val active = charges.filter { it.deletedAt == null }
     val revisions = snapshot.priceRevisions.filter { it.jobId == job.id }.sortedByDescending { it.revision }
-    SectionCard("Acordo e extras", caption = "Materiais: ${job.materialsPolicy.label}") {
+    SectionCard(icon = Icons.Filled.Handshake, title = "Acordo e extras", caption = "Materiais: ${job.materialsPolicy.label}") {
         val fixed = job.billingMode == BillingMode.FIXED_PRICE
         LabelValue(
             if (fixed) "Preço fixo (sem IVA)" else "Cobrança à hora",
@@ -197,7 +199,7 @@ fun AgreementSection(
         LabelValue("IVA a cobrar", job.vatRateBp?.let { Vat.label(it) } ?: "Por definir")
         active.forEach { c ->
             val tag = if (c.kind == ChargeKind.EXTRA) "Extra" else "Material"
-            TextButton(onClick = { onCancelCharge(c) }, enabled = !closed, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+            TextButton(onClick = { onCancelCharge(c) }, enabled = !closed, colors = listRowColors(), modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
                 Column(Modifier.fillMaxWidth()) {
                     Text("$tag · ${c.description} · ${Money(c.amountNetCents).format()}", style = MaterialTheme.typography.bodyLarge)
                     Text(
