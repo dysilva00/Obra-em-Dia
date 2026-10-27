@@ -49,7 +49,7 @@ Legenda: ✅ concluído e verificado · 🟡 parcial · ⬜ pendente
 - ✅ Aviso no ecrã da cópia de segurança de que desinstalar ou limpar os dados apaga tudo.
 - ✅ Prova no aparelho real (Nothing Phone (1), Android 15): seletor de contactos e cronómetro (continua a contar com a app fechada).
 - ✅ Cópia de segurança (Definições → Cópia de segurança): exporta um .zip (base + fotos/anexos + manifesto com SHA-256) para onde se escolher; restauro validado antes de mexer nos dados e aplicado no arranque, com recuperação se for interrompido. Alerta no Início (e no resumo diário) quando não há cópia ou tem mais de 30 dias, só com dados reais. Ciclo exportar → apagar → restaurar verificado no emulador.
-- ⬜ Prova no aparelho real: restaurar a cópia num segundo telemóvel
+- ✅ Prova no aparelho real: cópia guardada no Drive → app desinstalada → reinstalada → restauro completo (saldo, registos e fotos). Fotos com a câmara do sistema verificadas, incluindo o pedido de autorização depois de reinstalar.
 
 ## Ainda simulado ("ainda não disponível nesta versão")
 
