@@ -58,6 +58,17 @@ class MigrationTest {
     }
 
     @Test
+    fun v3_para_v4_cria_revisoes_de_encerramento() {
+        helper.createDatabase(3).close()
+        helper.runMigrationsAndValidate(4).use { db ->
+            db.prepare("SELECT COUNT(*) FROM job_closures").use { st ->
+                assertTrue(st.step())
+                assertEquals(0L, st.getLong(0))
+            }
+        }
+    }
+
+    @Test
     fun v2_para_v3_preserva_movimentos_e_cria_tabelas_de_compras() {
         helper.createDatabase(2).use { db ->
             db.execSQL(

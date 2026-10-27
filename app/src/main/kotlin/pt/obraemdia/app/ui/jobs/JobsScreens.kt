@@ -26,7 +26,16 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import pt.obraemdia.app.data.db.TimeEntryEntity
+import pt.obraemdia.app.data.db.TimeEntryKind
 import pt.obraemdia.app.data.repo.JobSummary
+import pt.obraemdia.app.ui.components.DateField
+import pt.obraemdia.app.ui.components.ReasonDialog
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
+import androidx.compose.runtime.remember
+import androidx.compose.foundation.layout.Row
+import androidx.compose.ui.Alignment
 import pt.obraemdia.app.data.repo.Snapshot
 import pt.obraemdia.app.ui.AgendaState
 import pt.obraemdia.app.ui.SaveResult
@@ -133,8 +142,10 @@ fun JobDetailScreen(
     onSchedule: () -> Unit,
     onAddExpense: () -> Unit,
     onChangeStatus: suspend (StatusChange) -> SaveResult,
+    onReviewClosure: () -> Unit,
+    onUpdateTime: suspend (id: String, date: LocalDate, minutes: Int, kind: TimeEntryKind, billable: Boolean, note: String?) -> SaveResult,
+    onDeleteTime: suspend (id: String, reason: String) -> SaveResult,
     onMessage: (String) -> Unit,
-    onNotReady: (String) -> Unit,
 ) {
     val s = snapshot.summary(jobId)
     if (s == null) {
@@ -143,6 +154,8 @@ fun JobDetailScreen(
     }
     val job = s.job
     var statusDialog by rememberSaveable { mutableStateOf(false) }
+    val closed = snapshot.isClosed(jobId)
+    var editing by remember { mutableStateOf<TimeEntryEntity?>(null) }
     val jobBookings = agenda?.items.orEmpty().filter { it.booking.jobId == jobId }
     val bookedDays = jobBookings.map { it.booking.slot.start.atZone(AGENDA_ZONE).toLocalDate() }.distinct().sorted()
     var month by rememberSaveable { mutableStateOf(YearMonth.from(bookedDays.firstOrNull { it >= today } ?: today)) }
@@ -159,7 +172,7 @@ fun JobDetailScreen(
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     StatusTag(job.status)
                     PriorityTag(job.priority)
-                    AssistChip(onClick = { statusDialog = true }, label = { Text("Mudar estado") }, modifier = Modifier.heightIn(min = 48.dp))
+                    AssistChip(onClick = { statusDialog = true }, enabled = !closed, label = { Text("Mudar estado") }, modifier = Modifier.heightIn(min = 48.dp))
                 }
                 job.urgentReason?.let { Text("Motivo da urgência: $it", style = MaterialTheme.typography.bodyMedium) }
                 if (job.status == JobStatus.ON_HOLD) {
@@ -171,13 +184,19 @@ fun JobDetailScreen(
                 }
             }
         }
+        if (closed) {
+            item {
+                val c = snapshot.closureOf(jobId)!!
+                WarningBox("Obra encerrada (revisão ${c.revision}). Para alterar horas, gastos ou pagamentos, reabra-a em \"Ver encerramento\".")
+            }
+        }
         item {
             // FlowRow: com letra grande, os botões passam para a linha seguinte em vez de partir palavras.
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilledTonalButton(onClick = onRecordTime, modifier = Modifier.heightIn(min = 48.dp)) { Text("Horas", softWrap = false) }
-                FilledTonalButton(onClick = onAddExpense, modifier = Modifier.heightIn(min = 48.dp)) { Text("Gasto", softWrap = false) }
-                FilledTonalButton(onClick = onRecordPayment, modifier = Modifier.heightIn(min = 48.dp)) { Text("Pagamento", softWrap = false) }
-                FilledTonalButton(onClick = onSchedule, modifier = Modifier.heightIn(min = 48.dp)) { Text("Agendar", softWrap = false) }
+                FilledTonalButton(onClick = onRecordTime, enabled = !closed, modifier = Modifier.heightIn(min = 48.dp)) { Text("Horas", softWrap = false) }
+                FilledTonalButton(onClick = onAddExpense, enabled = !closed, modifier = Modifier.heightIn(min = 48.dp)) { Text("Gasto", softWrap = false) }
+                FilledTonalButton(onClick = onRecordPayment, enabled = !closed, modifier = Modifier.heightIn(min = 48.dp)) { Text("Pagamento", softWrap = false) }
+                FilledTonalButton(onClick = onSchedule, enabled = !closed, modifier = Modifier.heightIn(min = 48.dp)) { Text("Agendar", softWrap = false) }
             }
         }
         item {
@@ -239,14 +258,25 @@ fun JobDetailScreen(
                     val mine = s.entries.filter { it.workerId == w.id }
                     if (mine.isNotEmpty()) LabelValue(w.name, formatMinutes(mine.sumOf { it.minutes }))
                 }
-                s.entries.sortedByDescending { it.date }.take(5).forEach { e ->
-                    Text(
-                        "${e.date.shortLabel()} · ${snapshot.workerName(e.workerId)} · ${formatMinutes(e.minutes)}" +
-                            if (job.billingMode == BillingMode.HOURLY) " · ${HourlyRate(e.saleRateCents).amountFor(60).format()}/h" else "",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                if (!closed && s.entries.isNotEmpty()) {
+                    Text("Toque num registo para o corrigir.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
+                s.entries.sortedByDescending { it.date }.take(12).forEach { e ->
+                    TextButton(
+                        onClick = { editing = e },
+                        enabled = !closed,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                    ) {
+                        Text(
+                            "${e.date.shortLabel()} · ${snapshot.workerName(e.workerId)} · ${formatMinutes(e.minutes)}" +
+                                (if (!e.billable) " · não faturável" else "") +
+                                if (job.billingMode == BillingMode.HOURLY) " · ${HourlyRate(e.saleRateCents).amountFor(60).format()}/h" else "",
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
+                if (s.entries.size > 12) Text("+ ${s.entries.size - 12} registo(s) mais antigos", style = MaterialTheme.typography.bodySmall)
             }
         }
         item {
@@ -271,10 +301,21 @@ fun JobDetailScreen(
             }
         }
         item {
-            Button(onClick = { onNotReady("Rever encerramento") }, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
-                Text("Rever encerramento")
+            Button(onClick = onReviewClosure, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
+                Text(if (closed) "Ver encerramento" else "Rever encerramento")
             }
         }
+    }
+
+    editing?.let { e ->
+        TimeEntryDialog(
+            entry = e,
+            workerName = snapshot.workerName(e.workerId),
+            onDismiss = { editing = null },
+            onSave = { date, minutes, kind, billable, note -> onUpdateTime(e.id, date, minutes, kind, billable, note) },
+            onDelete = { reason -> onDeleteTime(e.id, reason) },
+            onDone = { editing = null; onMessage(it) },
+        )
     }
 
     if (statusDialog) {
@@ -379,3 +420,81 @@ val PaymentSituation.label: String
         PaymentSituation.SETTLED -> "Liquidado"
         PaymentSituation.TO_REGULARIZE -> "A regularizar"
     }
+
+/** Correção de um registo de horas: editar (com histórico) ou anular com motivo. As taxas históricas não mudam. */
+@Composable
+private fun TimeEntryDialog(
+    entry: TimeEntryEntity,
+    workerName: String,
+    onDismiss: () -> Unit,
+    onSave: suspend (LocalDate, Int, TimeEntryKind, Boolean, String?) -> SaveResult,
+    onDelete: suspend (String) -> SaveResult,
+    onDone: (String) -> Unit,
+) {
+    var date by rememberSaveable { mutableStateOf(entry.date) }
+    var hours by rememberSaveable { mutableStateOf((entry.minutes / 60).toString()) }
+    var mins by rememberSaveable { mutableStateOf((entry.minutes % 60).toString()) }
+    var kind by rememberSaveable { mutableStateOf(entry.kind) }
+    var billable by rememberSaveable { mutableStateOf(entry.billable) }
+    var note by rememberSaveable { mutableStateOf(entry.note.orEmpty()) }
+    var deleting by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var busy by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val minutes = hours.toIntOrNull()?.let { h -> mins.toIntOrNull()?.takeIf { it in 0..59 }?.let { h * 60 + it } }
+
+    if (deleting) {
+        ReasonDialog(
+            title = "Anular registo",
+            message = "O registo deixa de contar, mas fica no histórico com o motivo.",
+            confirmLabel = "Anular",
+            onDismiss = { deleting = false },
+            onConfirm = onDelete,
+            onDone = onDone,
+        )
+        return
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Corrigir horas · $workerName") },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                DateField("Dia", date, LocalDate.now(AGENDA_ZONE)) { date = it }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(hours, { hours = it.filter(Char::isDigit).take(2) }, label = { Text("Horas") }, singleLine = true, modifier = Modifier.weight(1f))
+                    OutlinedTextField(mins, { mins = it.filter(Char::isDigit).take(2) }, label = { Text("Minutos") }, singleLine = true, modifier = Modifier.weight(1f))
+                }
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TimeEntryKind.entries.forEach { k ->
+                        FilterChip(kind == k, { kind = k }, {
+                            Text(when (k) { TimeEntryKind.WORK -> "Trabalho"; TimeEntryKind.TRAVEL -> "Deslocação"; TimeEntryKind.OTHER -> "Outro" })
+                        }, Modifier.heightIn(min = 48.dp))
+                    }
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Faturável", modifier = Modifier.weight(1f))
+                    Switch(billable, { billable = it })
+                }
+                OutlinedTextField(note, { note = it }, label = { Text("Nota") }, modifier = Modifier.fillMaxWidth())
+                Text(
+                    "Taxas guardadas neste registo: ${HourlyRate(entry.saleRateCents).amountFor(60).format()}/h venda · ${HourlyRate(entry.costRateCents).amountFor(60).format()}/h custo.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                TextButton(onClick = { deleting = true }) { Text("Anular este registo…", color = MaterialTheme.colorScheme.error) }
+                error?.let { WarningBox(it) }
+            }
+        },
+        confirmButton = {
+            TextButton(enabled = minutes != null && minutes > 0 && !busy, onClick = {
+                busy = true
+                scope.launch {
+                    val r = onSave(date, minutes!!, kind, billable, note)
+                    busy = false
+                    if (r.ok) onDone(r.message) else error = r.message
+                }
+            }) { Text("Gravar correção") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } },
+    )
+}

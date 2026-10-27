@@ -18,7 +18,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import pt.obraemdia.app.data.db.CashKind
+import pt.obraemdia.app.data.db.CashMovementEntity
 import pt.obraemdia.app.data.db.PaymentMethod
+import pt.obraemdia.app.data.repo.canReverse
+import pt.obraemdia.app.ui.components.ReasonDialog
+import androidx.compose.foundation.clickable
 import pt.obraemdia.app.data.repo.PurchaseStatus
 import pt.obraemdia.app.data.repo.Snapshot
 import pt.obraemdia.app.data.repo.newId
@@ -67,13 +71,17 @@ fun AccountsScreen(
     today: LocalDate,
     onAddExpense: () -> Unit,
     onPaySupplier: suspend (operationId: String, documentId: String, amount: Money, date: LocalDate, method: PaymentMethod) -> SaveResult,
+    onReverse: suspend (movementId: String, reason: String) -> SaveResult,
+    onVoidPurchase: suspend (documentId: String, reason: String) -> SaveResult,
     onMessage: (String) -> Unit,
     onNotReady: (String) -> Unit,
 ) {
+    var reversing by remember { mutableStateOf<CashMovementEntity?>(null) }
+    var voiding by remember { mutableStateOf<PurchaseStatus?>(null) }
     val month = YearMonth.from(today)
     val monthMovements = snapshot.movementsIn(month)
-    val received = monthMovements.filter { it.kind.inflow }.sumMoney { Money(it.amountCents) }
-    val paid = monthMovements.filter { !it.kind.inflow }.sumMoney { Money(it.amountCents) }
+    val received = snapshot.monthReceived(month)
+    val paid = snapshot.monthPaid(month)
     val jobTitles = snapshot.jobs.associate { it.job.id to it.job.title }
     val allocationsByDoc = snapshot.allocations.groupBy { it.documentId }
     // Movimento sem obra: despesa geral, ou pagamento de uma compra repartida por várias obras.
@@ -144,15 +152,45 @@ fun AccountsScreen(
                 }
             }
         }
-        item { Text("Movimentos", style = MaterialTheme.typography.titleMedium) }
         if (snapshot.movements.isEmpty()) {
             item { Text("Ainda não há movimentos registados.") }
         }
+        item {
+            SectionCard("Compras", caption = "Documentos registados · toque para anular um documento errado") {
+                if (snapshot.purchaseStatus.isEmpty()) Text("Ainda não há compras registadas.")
+                snapshot.purchaseStatus.take(15).forEach { st ->
+                    TextButton(onClick = { voiding = st }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                        Column(Modifier.fillMaxWidth()) {
+                            Text("${st.doc.supplierName ?: "Sem fornecedor"} · ${st.gross.format()}", style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                "${st.doc.docType.label} · ${st.doc.docDate.shortLabel()} · ${st.doc.category.label}" +
+                                    if (st.outstanding.isPositive) " · por pagar ${st.outstanding.format()}" else "",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        item { Text("Movimentos", style = MaterialTheme.typography.titleMedium) }
+        item {
+            Text("Toque num movimento para o estornar (corrigir sem apagar).", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
         items(snapshot.movements, key = { it.id }) { m ->
-            Column(Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(vertical = 6.dp)) {
+            val reversed = m.id in snapshot.reversedIds
+            Column(
+                Modifier.fillMaxWidth().heightIn(min = 56.dp)
+                    .clickable(enabled = m.canReverse(snapshot.reversedIds)) { reversing = m }
+                    .padding(vertical = 6.dp),
+            ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Column(Modifier.weight(1f)) {
-                        Text(listOfNotNull(m.kind.label, m.counterparty).joinToString(" — "), style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            (if (m.isReversal) "Estorno · " else "") + listOfNotNull(m.kind.label, m.counterparty).joinToString(" — ") + if (reversed) " (estornado)" else "",
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                        if (m.isReversal && m.note != null) Text("Motivo: ${m.note}", style = MaterialTheme.typography.bodySmall)
                         Text(
                             "${m.date.shortLabel()} · ${m.jobId?.let(jobTitles::get) ?: where(m.purchaseDocumentId)}",
                             style = MaterialTheme.typography.bodySmall,
@@ -171,6 +209,27 @@ fun AccountsScreen(
         }
     }
 
+    reversing?.let { m ->
+        ReasonDialog(
+            title = "Estornar movimento",
+            message = "${m.kind.label} de ${Money(m.amountCents).format()} em ${m.date.shortLabel()}. É criado um movimento contrário; o original fica no histórico.",
+            confirmLabel = "Estornar",
+            onDismiss = { reversing = null },
+            onConfirm = { onReverse(m.id, it) },
+            onDone = { reversing = null; onMessage(it) },
+        )
+    }
+    voiding?.let { st ->
+        ReasonDialog(
+            title = "Anular documento",
+            message = "${st.doc.supplierName ?: "Documento"} de ${st.gross.format()}. Deixa de contar nos custos" +
+                (if (st.paid.isPositive) " e o pagamento de ${st.paid.format()} é estornado." else ".") + " Fica no histórico.",
+            confirmLabel = "Anular",
+            onDismiss = { voiding = null },
+            onConfirm = { onVoidPurchase(st.doc.id, it) },
+            onDone = { voiding = null; onMessage(it) },
+        )
+    }
     paying?.let { st ->
         PaySupplierDialog(st, today, onDismiss = { paying = null }, onConfirm = onPaySupplier) { message ->
             paying = null

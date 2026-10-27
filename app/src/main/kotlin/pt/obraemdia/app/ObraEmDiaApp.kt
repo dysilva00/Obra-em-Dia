@@ -6,6 +6,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import pt.obraemdia.app.data.db.AppDatabase
+import pt.obraemdia.app.data.repo.Corrections
 import pt.obraemdia.app.data.repo.ObraRepository
 import pt.obraemdia.app.demo.DemoSeeder
 
@@ -16,6 +17,7 @@ import pt.obraemdia.app.demo.DemoSeeder
 class AppContainer(context: Context) {
     val database: AppDatabase = AppDatabase.build(context)
     val repository = ObraRepository(database)
+    val corrections = Corrections(database, repository, System::currentTimeMillis)
     val demoSeeder = DemoSeeder(database, repository)
     val appScope = CoroutineScope(SupervisorJob())
 }

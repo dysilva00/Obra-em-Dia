@@ -17,8 +17,8 @@ class Converters {
 }
 
 @Database(
-    version = 3,
-    autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3)],
+    version = 4,
+    autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3), AutoMigration(from = 3, to = 4)],
     entities = [
         WorkerEntity::class,
         ClientEntity::class,
@@ -33,6 +33,7 @@ class Converters {
         SettingEntity::class,
         PurchaseDocumentEntity::class,
         CostAllocationEntity::class,
+        JobClosureEntity::class,
     ],
 )
 @TypeConverters(Converters::class)
@@ -46,6 +47,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun auditDao(): AuditDao
     abstract fun settingsDao(): SettingsDao
     abstract fun purchaseDao(): PurchaseDao
+    abstract fun closureDao(): ClosureDao
+    abstract fun jobFactsDao(): JobFactsDao
     abstract fun demoDao(): pt.obraemdia.app.demo.DemoDao
 
     companion object {

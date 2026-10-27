@@ -216,8 +216,10 @@ enum class PaymentMethod { CASH, TRANSFER, MBWAY, OTHER }
         ForeignKey(PurchaseDocumentEntity::class, ["id"], ["purchaseDocumentId"], onDelete = ForeignKey.RESTRICT),
     ],
     indices = [
-        Index("jobId"), Index("date"), Index("reversalOfId"), Index("purchaseDocumentId"),
+        Index("jobId"), Index("date"), Index("purchaseDocumentId"),
         Index(value = ["operationId"], unique = true),
+        // Um movimento só pode ser estornado uma vez.
+        Index(value = ["reversalOfId"], unique = true),
     ],
 )
 data class CashMovementEntity(
@@ -238,7 +240,14 @@ data class CashMovementEntity(
     val createdAt: Long,
     val isDemo: Boolean = false,
 ) {
-    val signedCents get() = if (kind.inflow) amountCents else -amountCents
+    /** Efeito na caixa: entradas somam, saídas subtraem; um estorno tem o efeito contrário do original. */
+    val signedCents: Long
+        get() {
+            val base = if (kind.inflow) amountCents else -amountCents
+            return if (reversalOfId != null) -base else base
+        }
+
+    val isReversal get() = reversalOfId != null
 }
 
 @Entity(tableName = "audit_events", indices = [Index("entityId"), Index("at")])
@@ -323,4 +332,30 @@ data class CostAllocationEntity(
     val netCents: Long,
     val vatCents: Long,
     val grossCents: Long,
+)
+
+/**
+ * Revisão versionada do encerramento de uma obra. Reabrir preenche [reopenedAt]/[reopenReason];
+ * encerrar de novo cria a revisão seguinte. Nada é apagado.
+ */
+@Entity(
+    tableName = "job_closures",
+    foreignKeys = [
+        ForeignKey(JobEntity::class, ["id"], ["jobId"], onDelete = ForeignKey.RESTRICT),
+        ForeignKey(WorkerEntity::class, ["id"], ["reviewerWorkerId"], onDelete = ForeignKey.RESTRICT),
+    ],
+    indices = [Index(value = ["jobId", "revision"], unique = true), Index("reviewerWorkerId")],
+)
+data class JobClosureEntity(
+    @PrimaryKey val id: String,
+    val jobId: String,
+    val revision: Int,
+    val closedAt: Long,
+    /** Pessoa indicada como responsável pela revisão (opcional; sem login não prova autoria). */
+    val reviewerWorkerId: String?,
+    val notes: String?,
+    /** Balanço no momento do fecho, em JSON (valores em cêntimos). */
+    val balanceJson: String,
+    val reopenedAt: Long? = null,
+    val reopenReason: String? = null,
 )

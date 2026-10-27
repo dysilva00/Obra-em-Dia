@@ -116,6 +116,11 @@ interface ScheduleDao {
 
 @Dao
 interface TimeEntryDao {
+    @Query("SELECT * FROM time_entries WHERE id = :id")
+    suspend fun getById(id: String): TimeEntryEntity?
+
+    @Update suspend fun update(entry: TimeEntryEntity)
+
     /** IGNORE + índice único (operationId, workerId): repetir a operação não duplica horas. */
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertAll(entries: List<TimeEntryEntity>): List<Long>
@@ -129,6 +134,12 @@ interface TimeEntryDao {
 
 @Dao
 interface CashDao {
+    @Query("SELECT * FROM cash_movements WHERE id = :id")
+    suspend fun getById(id: String): CashMovementEntity?
+
+    @Query("SELECT * FROM cash_movements WHERE purchaseDocumentId = :docId")
+    suspend fun forDocument(docId: String): List<CashMovementEntity>
+
     /** IGNORE + operationId único: um duplo toque não regista o pagamento duas vezes. */
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(movement: CashMovementEntity): Long
@@ -155,6 +166,8 @@ interface SettingsDao {
 
 @Dao
 interface PurchaseDao {
+    @Update suspend fun update(doc: PurchaseDocumentEntity)
+
     /** IGNORE: o operationId e as chaves de duplicado são únicos; -1 significa que não foi gravado. */
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(doc: PurchaseDocumentEntity): Long
@@ -164,7 +177,7 @@ interface PurchaseDao {
     @Query("SELECT * FROM purchase_documents WHERE deletedAt IS NULL ORDER BY docDate DESC, createdAt DESC")
     fun observeAll(): Flow<List<PurchaseDocumentEntity>>
 
-    @Query("SELECT * FROM cost_allocations")
+    @Query("SELECT a.* FROM cost_allocations a JOIN purchase_documents d ON d.id = a.documentId WHERE d.deletedAt IS NULL")
     fun observeAllocations(): Flow<List<CostAllocationEntity>>
 
     @Query("SELECT * FROM purchase_documents WHERE id = :id")
@@ -184,9 +197,56 @@ interface PurchaseDao {
     )
     suspend fun findDuplicate(nif: String?, type: DocumentType, number: String?, atcud: String?): PurchaseDocumentEntity?
 
-    @Query("SELECT COALESCE(SUM(amountCents), 0) FROM cash_movements WHERE purchaseDocumentId = :docId AND kind = 'SUPPLIER_PAYMENT'")
+    @Query("SELECT COALESCE(SUM(CASE WHEN reversalOfId IS NULL THEN amountCents ELSE -amountCents END), 0) FROM cash_movements WHERE purchaseDocumentId = :docId AND kind = 'SUPPLIER_PAYMENT'")
     suspend fun paidCents(docId: String): Long
 
     @Query("SELECT * FROM cost_allocations WHERE documentId = :docId")
     suspend fun allocationsFor(docId: String): List<CostAllocationEntity>
+}
+
+@Dao
+interface ClosureDao {
+    @Insert suspend fun insert(closure: JobClosureEntity)
+    @Update suspend fun update(closure: JobClosureEntity)
+
+    @Query("SELECT * FROM job_closures ORDER BY jobId, revision")
+    fun observeAll(): Flow<List<JobClosureEntity>>
+
+    @Query("SELECT * FROM job_closures WHERE jobId = :jobId ORDER BY revision DESC LIMIT 1")
+    suspend fun latest(jobId: String): JobClosureEntity?
+}
+
+/** Leituras diretas para recalcular o balanço de uma obra dentro de uma transação. */
+@Dao
+interface JobFactsDao {
+    @Query(
+        """
+        SELECT jobs.*, clients.name AS clientName, work_sites.address AS siteAddress
+        FROM jobs LEFT JOIN clients ON clients.id = jobs.clientId LEFT JOIN work_sites ON work_sites.id = jobs.siteId
+        WHERE jobs.id = :jobId
+        """,
+    )
+    suspend fun row(jobId: String): JobRow?
+
+    @Query("SELECT * FROM time_entries WHERE jobId = :jobId AND deletedAt IS NULL")
+    suspend fun timeEntries(jobId: String): List<TimeEntryEntity>
+
+    @Query("SELECT * FROM cash_movements WHERE jobId = :jobId")
+    suspend fun cash(jobId: String): List<CashMovementEntity>
+
+    @Query(
+        """
+        SELECT a.* FROM cost_allocations a JOIN purchase_documents d ON d.id = a.documentId
+        WHERE a.jobId = :jobId AND d.deletedAt IS NULL
+        """,
+    )
+    suspend fun allocations(jobId: String): List<CostAllocationEntity>
+
+    @Query(
+        """
+        SELECT DISTINCT d.* FROM purchase_documents d JOIN cost_allocations a ON a.documentId = d.id
+        WHERE a.jobId = :jobId AND d.deletedAt IS NULL
+        """,
+    )
+    suspend fun documents(jobId: String): List<PurchaseDocumentEntity>
 }

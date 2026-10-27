@@ -3,6 +3,7 @@ package pt.obraemdia.app.data.repo
 import pt.obraemdia.app.data.db.CashKind
 import pt.obraemdia.app.data.db.CashMovementEntity
 import pt.obraemdia.app.data.db.CostAllocationEntity
+import pt.obraemdia.app.data.db.JobClosureEntity
 import pt.obraemdia.app.data.db.PurchaseDocumentEntity
 import pt.obraemdia.app.data.db.JobRow
 import pt.obraemdia.app.data.db.SettingEntity
@@ -34,7 +35,22 @@ data class Snapshot(
     val settings: Map<String, String>,
     val purchases: List<PurchaseDocumentEntity> = emptyList(),
     val allocations: List<CostAllocationEntity> = emptyList(),
+    val closures: List<JobClosureEntity> = emptyList(),
 ) {
+    /** Ids de movimentos que já foram estornados. */
+    val reversedIds: Set<String> by lazy { movements.mapNotNull { it.reversalOfId }.toSet() }
+
+    /** Última revisão de encerramento da obra, se existir. */
+    fun closureOf(jobId: String): JobClosureEntity? = closures.filter { it.jobId == jobId }.maxByOrNull { it.revision }
+
+    /** Encerrada = última revisão sem reabertura. */
+    fun isClosed(jobId: String): Boolean = closureOf(jobId)?.let { it.reopenedAt == null } == true
+
+    /** Recebido no mês, líquido de estornos. */
+    fun monthReceived(month: YearMonth): Money = movementsIn(month).filter { it.kind.inflow }.sumMoney { Money(it.signedCents) }
+
+    /** Pago no mês, líquido de estornos. */
+    fun monthPaid(month: YearMonth): Money = -movementsIn(month).filter { !it.kind.inflow }.sumMoney { Money(it.signedCents) }
     val hasDemoData: Boolean
         get() = jobs.any { it.job.isDemo } || movements.any { it.isDemo } || timeEntries.any { it.isDemo } || purchases.any { it.isDemo }
 
@@ -42,9 +58,10 @@ data class Snapshot(
 
     /** Documentos com o que falta pagar ao fornecedor (só faturas; notas de crédito não). */
     val purchaseStatus: List<PurchaseStatus> by lazy {
+        // Pagamentos líquidos de estornos (signedCents é negativo num pagamento e positivo no seu estorno).
         val paid = movements.filter { it.purchaseDocumentId != null && it.kind == CashKind.SUPPLIER_PAYMENT }
             .groupBy { it.purchaseDocumentId }
-            .mapValues { (_, list) -> list.sumMoney { Money(it.amountCents) } }
+            .mapValues { (_, list) -> -list.sumMoney { Money(it.signedCents) } }
         val allocated = allocations.groupBy { it.documentId }
         purchases.map { doc ->
             val lines = allocated[doc.id].orEmpty()
@@ -125,8 +142,11 @@ data class JobSummary(
                 )
             }
             val dueGross = if (saleNet != null && job.vatRateBp != null) Vat.gross(saleNet, job.vatRateBp) else null
-            val receipts = cash.filter { it.kind == CashKind.CLIENT_RECEIPT }.map { Money(it.amountCents) }
-            val refunds = cash.filter { it.kind == CashKind.CLIENT_REFUND }.map { Money(it.amountCents) }
+            // Um estorno de recebimento conta como devolução, e vice-versa: o saldo fica sempre certo.
+            val receipts = cash.filter { (it.kind == CashKind.CLIENT_RECEIPT && !it.isReversal) || (it.kind == CashKind.CLIENT_REFUND && it.isReversal) }
+                .map { Money(it.amountCents) }
+            val refunds = cash.filter { (it.kind == CashKind.CLIENT_REFUND && !it.isReversal) || (it.kind == CashKind.CLIENT_RECEIPT && it.isReversal) }
+                .map { Money(it.amountCents) }
             val balance = dueGross?.let { ClientBalance(it, receipts, refunds) }
             val received = receipts.sum() - refunds.sum()
             // Custos conhecidos entram no resultado mesmo que ainda não estejam pagos.

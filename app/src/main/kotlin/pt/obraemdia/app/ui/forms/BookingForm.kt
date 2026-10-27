@@ -10,7 +10,9 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.semantics.Role
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.AssistChip
@@ -242,9 +244,13 @@ fun BookingScreen(vm: AppViewModel, snapshot: Snapshot, initialJobId: String?, i
                 }
 
                 Text("3. Manter a sobreposição", style = MaterialTheme.typography.labelLarge)
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.heightIn(min = 48.dp)) {
-                    Checkbox(keepOverlap, { keepOverlap = it })
-                    Text("Manter mesmo assim")
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                        .toggleable(keepOverlap, role = Role.Checkbox, onValueChange = { keepOverlap = it }),
+                ) {
+                    Checkbox(keepOverlap, onCheckedChange = null)
+                    Text("  Manter mesmo assim")
                 }
                 if (keepOverlap) {
                     OutlinedTextField(

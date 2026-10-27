@@ -58,8 +58,8 @@ fun HomeScreen(
 ) {
     var month by rememberSaveable { mutableStateOf(YearMonth.from(today)) }
     val monthMovements = snapshot.movementsIn(month)
-    val received = monthMovements.filter { it.kind.inflow }.sumMoney { Money(it.amountCents) }
-    val paid = monthMovements.filter { !it.kind.inflow }.sumMoney { Money(it.amountCents) }
+    val received = snapshot.monthReceived(month)
+    val paid = snapshot.monthPaid(month)
     val summaries = snapshot.summaries
     val toReceive = summaries.mapNotNull { it.balance?.balance }.filter { it.isPositive }.sum()
     val unknownDue = summaries.count { it.dueGross == null && it.job.status != JobStatus.CANCELLED }

@@ -45,3 +45,13 @@ Registo das escolhas reversíveis tomadas durante o desenvolvimento. A especific
 - **IVA:** a taxa é escolhida por obra, com "Por definir" como valor padrão. Nunca se assume 23 %.
 - **Dados de demonstração:** gravados na base com `isDemo = 1` e removíveis em bloco, numa transação. Se houver registos reais ligados a uma obra de demonstração, a remoção falha sem apagar nada. As duas pessoas e as suas taxas são **provisórias** (2 500/1 500 e 2 200/1 500 cêntimos por hora) até serem confirmadas.
 - O backup automático do Android está desligado (`allowBackup=false`); o backup completo é feito pela própria app.
+
+## Correções e encerramento
+
+- **Movimentos de caixa:** nunca se apagam. "Estornar" cria um movimento do mesmo tipo e valor, com `reversalOfId` e motivo, e o seu efeito na caixa é o contrário do original. Há um índice único em `reversalOfId`, por isso cada movimento só pode ser estornado uma vez, e um estorno não pode ser estornado.
+- **Horas:** a correção edita data, duração, tipo, se é faturável e a nota; as taxas históricas nunca mudam. A anulação usa `deletedAt`. Ambas ficam em `audit_events`, a correção com o antes e o depois.
+- **Documentos de compra:** a anulação usa `deletedAt` e estorna, na mesma transação, os pagamentos que ainda não tinham sido estornados. Deixam de contar nos custos.
+- **Encerramento:** guarda uma revisão em `job_closures` com o balanço em JSON. A revisão é calculada a partir da base dentro da transação de fecho e não a partir do ecrã.
+- **Obra encerrada:** horas, recebimentos, gastos, marcações e mudanças de estado são recusados (`JobClosedException`). Pagar a fornecedores continua a ser permitido, porque a obrigação mantém-se depois do fecho.
+- **Reabrir:** exige motivo e é registado na revisão atual. Encerrar de novo cria a revisão seguinte e as anteriores ficam guardadas.
+- O responsável indicado no encerramento é apenas uma indicação: sem contas de acesso, não prova quem fez a revisão.

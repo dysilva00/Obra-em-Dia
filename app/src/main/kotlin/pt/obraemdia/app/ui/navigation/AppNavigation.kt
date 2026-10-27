@@ -47,6 +47,7 @@ import pt.obraemdia.app.ui.accounts.AccountsScreen
 import pt.obraemdia.app.ui.agenda.AgendaScreen
 import pt.obraemdia.app.ui.components.DemoBanner
 import pt.obraemdia.app.ui.forms.BookingScreen
+import pt.obraemdia.app.ui.forms.ClosureScreen
 import pt.obraemdia.app.ui.forms.ExpenseScreen
 import pt.obraemdia.app.ui.forms.NewJobScreen
 import pt.obraemdia.app.ui.forms.RecordPaymentScreen
@@ -66,6 +67,7 @@ import kotlin.reflect.KClass
 @Serializable data class RecordPaymentRoute(val jobId: String? = null)
 @Serializable data class BookingRoute(val jobId: String? = null, val date: String? = null)
 @Serializable data class ExpenseRoute(val jobId: String? = null)
+@Serializable data class ClosureRoute(val jobId: String)
 
 private data class Tab(val route: Any, val routeClass: KClass<*>, val label: String, val icon: ImageVector)
 
@@ -83,6 +85,7 @@ private fun NavDestination?.title(): String = when {
     hasRoute(RecordPaymentRoute::class) -> "Registar pagamento"
     hasRoute(BookingRoute::class) -> "Agendar obra"
     hasRoute(ExpenseRoute::class) -> "Adicionar gasto"
+    hasRoute(ClosureRoute::class) -> "Encerramento"
     hasRoute(JobDetailRoute::class) -> "Obra"
     else -> tabs.firstOrNull { hasRoute(it.routeClass) }?.label.orEmpty()
 }
@@ -176,6 +179,8 @@ fun AppNavigation() {
                     snap, vm.today,
                     onAddExpense = { nav.navigate(ExpenseRoute()) },
                     onPaySupplier = vm::paySupplier,
+                    onReverse = vm::reverseMovement,
+                    onVoidPurchase = vm::voidPurchase,
                     onMessage = message,
                     onNotReady = notReady,
                 )
@@ -189,8 +194,10 @@ fun AppNavigation() {
                     onSchedule = { nav.navigate(BookingRoute(jobId)) },
                     onAddExpense = { nav.navigate(ExpenseRoute(jobId)) },
                     onChangeStatus = { change -> vm.changeStatus(jobId, change) },
+                    onReviewClosure = { nav.navigate(ClosureRoute(jobId)) },
+                    onUpdateTime = vm::updateTimeEntry,
+                    onDeleteTime = vm::deleteTimeEntry,
                     onMessage = message,
-                    onNotReady = notReady,
                 )
             }
             composable<NewJobRoute> {
@@ -205,6 +212,7 @@ fun AppNavigation() {
             }
             composable<RecordTimeRoute> { entry -> RecordTimeScreen(vm, snap, entry.toRoute<RecordTimeRoute>().jobId, finished) }
             composable<RecordPaymentRoute> { entry -> RecordPaymentScreen(vm, snap, entry.toRoute<RecordPaymentRoute>().jobId, finished) }
+            composable<ClosureRoute> { entry -> ClosureScreen(vm, snap, entry.toRoute<ClosureRoute>().jobId, message, finished) }
             composable<ExpenseRoute> { entry -> ExpenseScreen(vm, snap, entry.toRoute<ExpenseRoute>().jobId, finished) }
             composable<BookingRoute> { entry ->
                 val route = entry.toRoute<BookingRoute>()

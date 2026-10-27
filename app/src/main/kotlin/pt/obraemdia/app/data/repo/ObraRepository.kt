@@ -157,7 +157,8 @@ class ObraRepository(private val db: AppDatabase, private val clock: () -> Long 
         ) { workers, jobs, entries, cash, settings -> Snapshot(workers, jobs, entries, cash, settings) },
         db.purchaseDao().observeAll(),
         db.purchaseDao().observeAllocations(),
-    ) { base, purchases, allocations -> base.copy(purchases = purchases, allocations = allocations) }
+        db.closureDao().observeAll(),
+    ) { base, purchases, allocations, closures -> base.copy(purchases = purchases, allocations = allocations, closures = closures) }
 
     fun schedule(fromMs: Long, toMs: Long): Flow<Pair<List<ScheduleRow>, List<TimeOffEntity>>> =
         combine(db.scheduleDao().observeRange(fromMs, toMs), db.scheduleDao().observeTimeOff(fromMs, toMs)) { a, b -> a to b }
@@ -204,6 +205,7 @@ class ObraRepository(private val db: AppDatabase, private val clock: () -> Long 
         require(input.workerIds.isNotEmpty()) { "Escolha pelo menos uma pessoa" }
         val now = clock()
         return transaction {
+            ensureOpen(input.jobId)
             val workers = db.workerDao().getAll().associateBy { it.id }
             val entries = input.workerIds.map { workerId ->
                 val worker = requireNotNull(workers[workerId]) { "Pessoa desconhecida" }
@@ -234,6 +236,7 @@ class ObraRepository(private val db: AppDatabase, private val clock: () -> Long 
         require(input.amount.isPositive) { "O valor tem de ser positivo" }
         val now = clock()
         return transaction {
+            ensureOpen(input.jobId)
             val id = newId()
             val rowId = db.cashDao().insert(
                 CashMovementEntity(
@@ -267,6 +270,7 @@ class ObraRepository(private val db: AppDatabase, private val clock: () -> Long 
         return transaction {
             val job = requireNotNull(db.jobDao().getById(input.jobId)) { "Obra não encontrada" }
             require(job.status != JobStatus.CANCELLED) { "A obra está cancelada" }
+            ensureOpen(job.id)
             val from = input.slots.minOf { it.start } - margin
             val to = input.slots.maxOf { it.end } + margin
             // Exclui as reservas desta mesma operação: uma nova tentativa não conflitua consigo própria.
@@ -328,6 +332,7 @@ class ObraRepository(private val db: AppDatabase, private val clock: () -> Long 
         val now = clock()
         return transaction {
             db.purchaseDao().getByOperation(input.operationId)?.let { return@transaction ExpenseOutcome.Duplicate(it) }
+            input.lines.map { it.jobId }.distinct().forEach { ensureOpen(it) }
             val nif = input.supplierNif?.filter(Char::isDigit)?.takeIf { it.isNotEmpty() }
             val number = input.docNumber?.trim()?.takeIf { it.isNotEmpty() }
             val atcud = input.atcud?.trim()?.takeIf { it.isNotEmpty() }
@@ -420,6 +425,7 @@ class ObraRepository(private val db: AppDatabase, private val clock: () -> Long 
     suspend fun changeStatus(jobId: String, change: StatusChange): StatusOutcome {
         val now = clock()
         return transaction {
+            ensureOpen(jobId)
             val job = requireNotNull(db.jobDao().getById(jobId)) { "Obra não encontrada" }
             val hasBooking = db.scheduleDao().firmCount(jobId) > 0
             when (val check = JobTransitions.validate(job.status, change, hasBooking)) {
@@ -446,6 +452,13 @@ class ObraRepository(private val db: AppDatabase, private val clock: () -> Long 
 
     private suspend fun audit(entity: String, entityId: String, action: String, detail: String?) {
         db.auditDao().insert(AuditEventEntity(newId(), entity, entityId, action, detail, clock()))
+    }
+
+    /** Falha se a obra estiver encerrada (última revisão sem reabertura). */
+    suspend fun ensureOpen(jobId: String?) {
+        if (jobId == null) return
+        val latest = db.closureDao().latest(jobId) ?: return
+        if (latest.reopenedAt == null) throw JobClosedException()
     }
 
     /** Transação de escrita imediata: ou tudo é gravado, ou nada é. */

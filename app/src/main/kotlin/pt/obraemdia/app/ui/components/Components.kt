@@ -26,6 +26,7 @@ import pt.obraemdia.app.ui.longLabel
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -253,3 +254,49 @@ fun WarningBox(text: String, modifier: Modifier = Modifier) {
         }
     }
 }
+
+/**
+ * Confirmação de uma correção que exige motivo (estornar, anular, reabrir).
+ * O motivo fica no histórico; nada é apagado em silêncio.
+ */
+@Composable
+fun ReasonDialog(
+    title: String,
+    message: String,
+    confirmLabel: String,
+    onDismiss: () -> Unit,
+    onConfirm: suspend (String) -> pt.obraemdia.app.ui.SaveResult,
+    onDone: (String) -> Unit,
+) {
+    var reason by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf<String?>(null) }
+    var busy by remember { mutableStateOf(false) }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(message, style = MaterialTheme.typography.bodyMedium)
+                androidx.compose.material3.OutlinedTextField(
+                    reason, { reason = it }, label = { Text("Motivo (obrigatório)") }, modifier = Modifier.fillMaxWidth(),
+                )
+                error?.let { WarningBox(it) }
+            }
+        },
+        confirmButton = {
+            TextButton(enabled = reason.isNotBlank() && !busy, onClick = {
+                busy = true
+                scope.launch {
+                    val result = onConfirm(reason)
+                    busy = false
+                    if (result.ok) onDone(result.message) else error = result.message
+                }
+            }) { Text(confirmLabel) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } },
+    )
+}
+
+/** Ícone de aviso partilhado (âmbar no tema). */
+val WarningIcon: androidx.compose.ui.graphics.vector.ImageVector get() = Icons.Filled.Warning

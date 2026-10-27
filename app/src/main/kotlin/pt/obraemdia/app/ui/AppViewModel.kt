@@ -12,6 +12,11 @@ import pt.obraemdia.app.data.db.ScheduleRow
 import pt.obraemdia.app.data.db.TimeOffEntity
 import pt.obraemdia.app.data.db.PaymentMethod
 import pt.obraemdia.app.data.repo.BookingOutcome
+import pt.obraemdia.app.data.repo.ClosureConfirmations
+import pt.obraemdia.app.data.repo.ClosureOutcome
+import pt.obraemdia.app.data.repo.ClosureReview
+import pt.obraemdia.app.data.db.TimeEntryKind
+import pt.obraemdia.domain.job.ClosureIssue
 import pt.obraemdia.app.data.repo.ExpenseOutcome
 import pt.obraemdia.app.data.repo.NewExpense
 import pt.obraemdia.app.data.repo.NewBooking
@@ -154,6 +159,45 @@ class AppViewModel(private val container: AppContainer) : ViewModel() {
             SaveOutcome.Saved -> "Pagamento ao fornecedor registado"
             SaveOutcome.Duplicate -> "Este pagamento já tinha sido gravado"
         }
+    }
+
+    private val corrections get() = container.corrections
+
+    suspend fun reverseMovement(id: String, reason: String): SaveResult = save {
+        corrections.reverseMovement(id, reason, today)
+        "Movimento estornado"
+    }
+
+    suspend fun updateTimeEntry(id: String, date: LocalDate, minutes: Int, kind: TimeEntryKind, billable: Boolean, note: String?): SaveResult = save {
+        corrections.updateTimeEntry(id, date, minutes, kind, billable, note)
+        "Registo de horas corrigido"
+    }
+
+    suspend fun deleteTimeEntry(id: String, reason: String): SaveResult = save {
+        corrections.deleteTimeEntry(id, reason)
+        "Registo de horas anulado"
+    }
+
+    suspend fun voidPurchase(id: String, reason: String): SaveResult = save {
+        val reversed = corrections.voidPurchase(id, reason, today)
+        "Documento anulado" + if (reversed > 0) " · $reversed pagamento(s) estornado(s)" else ""
+    }
+
+    suspend fun reviewClosure(jobId: String, c: ClosureConfirmations): ClosureReview? =
+        runCatching { container.repository.transaction { corrections.review(jobId, c) } }.getOrNull()
+
+    suspend fun closeJob(jobId: String, c: ClosureConfirmations): SaveResult = runCatching {
+        when (val o = corrections.close(jobId, c)) {
+            is ClosureOutcome.Closed -> SaveResult(true, "Obra encerrada (revisão ${o.revision})")
+            is ClosureOutcome.Blocked -> SaveResult(false, "Ainda não é possível encerrar: " + o.issues.filterIsInstance<ClosureIssue.Blocker>().joinToString("; ") { it.message })
+        }
+    }.getOrElse { SaveResult(false, "Não foi possível encerrar: ${it.message}") }
+
+    fun decodeBalance(c: pt.obraemdia.app.data.db.JobClosureEntity) = corrections.decodeBalance(c)
+
+    suspend fun reopenJob(jobId: String, reason: String): SaveResult = save {
+        corrections.reopen(jobId, reason)
+        "Obra reaberta"
     }
 
     suspend fun deleteDemoData(): SaveResult =
