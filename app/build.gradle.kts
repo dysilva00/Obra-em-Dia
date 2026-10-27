@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -17,9 +19,25 @@ android {
         minSdk = 26
         targetSdk = 37
         versionCode = 1
-        versionName = "0.1.0"
+        versionName = "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    // Chave da versão final: fora do git (keystore.properties na raiz, ver docs/BUILD.md).
+    // Sem ela, a versão release fica por assinar e não se instala.
+    val signing = rootProject.file("keystore.properties").takeIf { it.exists() }?.let { f ->
+        Properties().apply { f.inputStream().use(::load) }
+    }
+    signingConfigs {
+        if (signing != null) {
+            create("release") {
+                storeFile = file(signing.getProperty("storeFile"))
+                storePassword = signing.getProperty("storePassword")
+                keyAlias = signing.getProperty("keyAlias")
+                keyPassword = signing.getProperty("keyPassword")
+            }
+        }
     }
 
     buildTypes {
@@ -27,9 +45,14 @@ android {
             applicationIdSuffix = ".debug"
         }
         release {
+            signingConfig = signingConfigs.findByName("release")
+            // R8 em toda a app (as bibliotecas trazem as suas regras). Restringir a pacotes
+            // (packageScope) partia o arranque: classes do Kotlin otimizadas ficavam inacessíveis.
             optimization {
                 enable = true
-                packageScope = setOf("androidx.**", "kotlin.**", "kotlinx.**")
+                keepRules {
+                    files.add(file("proguard-rules.pro"))
+                }
             }
         }
     }

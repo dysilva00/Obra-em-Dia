@@ -46,6 +46,7 @@ Legenda: ✅ concluído e verificado · 🟡 parcial · ⬜ pendente
 - ✅ Aviso quando as horas da mesma pessoa se sobrepõem ou o dia passa das 16 h; só grava depois de confirmar.
 - ✅ Cronómetro (um por pessoa, também para "Os dois"): começa em Registar horas, fica em destaque no Início e "Parar e registar" abre o formulário preenchido. Sobrevive a fechar a app.
 - ✅ Cliente a partir dos contactos (Nova obra e Editar obra): copia só o nome e o telefone, sem pedir permissão. No emulador com Android 17 abre o novo seletor privado de contactos.
+- ✅ Versão final 1.0.0 assinada com chave própria e otimizada (R8), em `dist/ObraEmDia-1.0.0.apk`. Testada no emulador: arranque, horas, cronómetro, PDF com QR, Ler QR, contactos, cópia e restauro (incluindo uma cópia antiga v8), lembrete. Ver `docs/BUILD.md`.
 - ✅ Ecrã de Ajuda (ícone "?" no topo das abas e em Definições): 12 temas com passos curtos e os nomes reais dos botões.
 - ✅ Aviso no ecrã da cópia de segurança de que desinstalar ou limpar os dados apaga tudo.
 - ✅ Prova no aparelho real (Nothing Phone (1), Android 15): seletor de contactos e cronómetro (continua a contar com a app fechada).
