@@ -102,3 +102,11 @@ Registo das escolhas reversíveis tomadas durante o desenvolvimento. A especific
 - **Cor e superfícies:** verde-petróleo como cor principal e âmbar nos avisos. Os cartões são camadas tonais com contorno subtil, sem sombra, e cantos de 18–32 dp. Só existe tema claro, pensado para uso no exterior.
 - **Início:** um cartão de destaque em degradê junta o saldo acumulado, o mês e os movimentos do mês. As três ações principais são mosaicos grandes.
 - **Acessibilidade:** com a letra a mais de 115 %, as filas de quatro ações passam a grelha 2×2. Legendas e filas de botões usam `FlowRow` para passarem à linha seguinte em vez de partirem palavras. O mínimo de 48 dp nos alvos de toque mantém-se.
+
+## Lembretes
+
+- **Um resumo diário, nunca uma notificação por registo:** inclui as marcações de amanhã, as prestações e faturas vencidas, as obras em espera a rever e as sobreposições. Os dados em falta (obra sem preço, compras por classificar) ficam só no Início da app.
+- **Agendamento:** WorkManager periódico de 24 h, com o primeiro disparo à hora escolhida (7:00, 8:00, 9:00 ou 19:00). É reagendado ao gravar as preferências e no arranque da app. Funciona com a app fechada e sem internet.
+- **Sem repetições:** guarda-se a assinatura do último resumo enviado e o mesmo conteúdo não volta a ser notificado. Cada resumo substitui o anterior, por isso as notificações não se acumulam.
+- **Permissão:** `POST_NOTIFICATIONS` é pedida só quando se liga o resumo. Se for recusada, nada mais deixa de funcionar e os avisos continuam no Início.
+- **Por defeito está desligado.** As preferências ficam nas definições locais, que entram no backup.

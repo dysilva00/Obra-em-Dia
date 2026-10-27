@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Só para o resumo diário opcional; pedida quando se ligam os lembretes. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <!-- allowBackup=false: os dados não saem do aparelho por defeito; o backup é exportado pela própria app. -->
     <application
         android:name=".ObraEmDiaApp"

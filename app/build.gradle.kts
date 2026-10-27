@@ -55,6 +55,7 @@ dependencies {
 
     implementation(libs.room.runtime)
     implementation(libs.sqlite.bundled)
+    implementation(libs.work.runtime)
     ksp(libs.room.compiler)
 
     implementation(platform(libs.compose.bom))

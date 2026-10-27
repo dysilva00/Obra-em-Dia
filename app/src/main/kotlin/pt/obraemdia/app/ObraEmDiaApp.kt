@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Context
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import pt.obraemdia.app.data.db.AppDatabase
 import pt.obraemdia.app.data.files.AttachmentStore
@@ -37,7 +38,12 @@ class ObraEmDiaApp : Application() {
     override fun onCreate() {
         super.onCreate()
         container = AppContainer(this)
-        container.appScope.launch { container.demoSeeder.seedIfFirstRun() }
+        container.appScope.launch {
+            container.demoSeeder.seedIfFirstRun()
+            // Garante o lembrete diário agendado (ex.: depois de atualizar a app).
+            val settings = pt.obraemdia.app.data.repo.Settings.toMap(container.database.settingsDao().observeAll().first())
+            pt.obraemdia.app.reminders.ReminderWorker.schedule(this@ObraEmDiaApp, pt.obraemdia.app.reminders.ReminderPrefs.from(settings))
+        }
     }
 }
 

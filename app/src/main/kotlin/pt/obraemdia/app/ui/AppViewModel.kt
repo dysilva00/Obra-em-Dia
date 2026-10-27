@@ -247,6 +247,12 @@ class AppViewModel(private val container: AppContainer) : ViewModel() {
         "Definições gravadas"
     }
 
+    suspend fun saveReminders(prefs: pt.obraemdia.app.reminders.ReminderPrefs, context: android.content.Context): SaveResult = save {
+        container.settings.saveReminders(prefs)
+        pt.obraemdia.app.reminders.ReminderWorker.schedule(context, prefs)
+        if (prefs.enabled) "Lembrete diário às ${prefs.time} ligado" else "Lembretes desligados"
+    }
+
     suspend fun addTimeOff(workerId: String, from: LocalDate, to: LocalDate, reason: String): SaveResult = save {
         val clashes = container.settings.addTimeOff(workerId, from, to, reason)
         "Indisponibilidade registada" + if (clashes > 0) " · atenção: $clashes marcação(ões) ficam em conflito (ver Agenda)" else ""

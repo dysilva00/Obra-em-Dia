@@ -41,6 +41,11 @@ class BusinessSettings(private val db: AppDatabase, private val repo: ObraReposi
         put(Settings.AFTERNOON_END, h.afternoonEnd.toString())
     }
 
+    /** Preferências dos lembretes (só locais; o agendamento é feito por quem chama). */
+    suspend fun saveReminders(prefs: pt.obraemdia.app.reminders.ReminderPrefs) = repo.transaction {
+        prefs.toSettings().forEach { (k, v) -> put(k, v) }
+    }
+
     /** Indisponibilidade de dias completos [from, to]. Devolve quantas marcações firmes ou pré-reservas colidem. */
     suspend fun addTimeOff(workerId: String, from: LocalDate, to: LocalDate, reason: String): Int {
         require(reason.isNotBlank()) { "Indique o motivo" }

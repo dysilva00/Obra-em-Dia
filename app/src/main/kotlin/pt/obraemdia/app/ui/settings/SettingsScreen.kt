@@ -1,10 +1,12 @@
 package pt.obraemdia.app.ui.settings
 
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.EventBusy
 import androidx.compose.material.icons.filled.Business
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -64,6 +66,7 @@ fun SettingsScreen(vm: AppViewModel, snapshot: Snapshot, timeOff: List<TimeOffEn
         Text("Pessoas", style = MaterialTheme.typography.titleMedium)
         snapshot.workers.forEach { w -> WorkerCard(vm, w, onMessage) }
         BusinessCard(vm, snapshot, onMessage)
+        RemindersCard(vm, snapshot, onMessage)
         TimeOffCard(vm, snapshot, timeOff, onMessage)
         SectionCard(icon = Icons.Filled.Science, title = "Dados de demonstração", caption = "Obras, horas e contas fictícias para experimentar") {
             if (snapshot.hasDemoData) {
@@ -219,5 +222,71 @@ private fun TimeOffCard(vm: AppViewModel, snapshot: Snapshot, timeOff: List<Time
                 }
             }
         }
+    }
+}
+
+/**
+ * Resumo diário opcional. A permissão de notificações só é pedida ao ligar; se for recusada,
+ * nada mais deixa de funcionar.
+ */
+@Composable
+private fun RemindersCard(vm: AppViewModel, snapshot: Snapshot, onMessage: (String) -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val saved = pt.obraemdia.app.reminders.ReminderPrefs.from(snapshot.settings)
+    var prefs by remember(saved) { mutableStateOf(saved) }
+    val scope = rememberCoroutineScope()
+
+    fun save(p: pt.obraemdia.app.reminders.ReminderPrefs) {
+        prefs = p
+        scope.launch { onMessage(vm.saveReminders(p, context).message) }
+    }
+
+    val permission = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        if (granted) save(prefs.copy(enabled = true))
+        else onMessage("Sem autorização para notificações: os avisos continuam no Início da app")
+    }
+
+    fun enable() {
+        val needs = android.os.Build.VERSION.SDK_INT >= 33 && !pt.obraemdia.app.reminders.ReminderWorker.canNotify(context)
+        if (needs) permission.launch(android.Manifest.permission.POST_NOTIFICATIONS) else save(prefs.copy(enabled = true))
+    }
+
+    SectionCard(
+        icon = Icons.Filled.Notifications,
+        title = "Lembretes",
+        caption = "Um resumo por dia, só quando há algo novo. Funciona sem internet.",
+    ) {
+        ToggleRow("Resumo diário", prefs.enabled) { on -> if (on) enable() else save(prefs.copy(enabled = false)) }
+        if (prefs.enabled) {
+            Text("Hora", style = MaterialTheme.typography.labelLarge)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(LocalTime.of(7, 0), LocalTime.of(8, 0), LocalTime.of(9, 0), LocalTime.of(19, 0)).forEach { t ->
+                    FilterChip(prefs.time == t, { save(prefs.copy(time = t)) }, { Text(t.format(hhmm)) }, Modifier.heightIn(min = 48.dp))
+                }
+            }
+            Text("Incluir", style = MaterialTheme.typography.labelLarge)
+            ToggleRow("Marcações de amanhã", prefs.tomorrow) { save(prefs.copy(tomorrow = it)) }
+            ToggleRow("Prestações e faturas vencidas", prefs.overdue) { save(prefs.copy(overdue = it)) }
+            ToggleRow("Obras em espera a rever", prefs.holdReview) { save(prefs.copy(holdReview = it)) }
+            ToggleRow("Sobreposições na agenda", prefs.conflicts) { save(prefs.copy(conflicts = it)) }
+            OutlinedButton(
+                onClick = { pt.obraemdia.app.reminders.ReminderWorker.runNow(context); onMessage("A preparar o resumo…") },
+                modifier = Modifier.heightIn(min = 48.dp),
+            ) { Text("Experimentar agora") }
+        }
+    }
+}
+
+@Composable
+private fun ToggleRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+            .toggleable(checked, role = androidx.compose.ui.semantics.Role.Switch, onValueChange = onChange),
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+        androidx.compose.material3.Switch(checked, onCheckedChange = null)
     }
 }
