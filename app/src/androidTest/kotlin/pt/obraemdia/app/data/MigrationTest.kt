@@ -58,6 +58,17 @@ class MigrationTest {
     }
 
     @Test
+    fun v7_para_v8_cria_faturas_emitidas() {
+        helper.createDatabase(7).close()
+        helper.runMigrationsAndValidate(8).use { db ->
+            db.prepare("SELECT COUNT(*) FROM issued_invoices").use { st ->
+                assertTrue(st.step())
+                assertEquals(0L, st.getLong(0))
+            }
+        }
+    }
+
+    @Test
     fun v6_para_v7_cria_anexos_notas_e_checklist() {
         helper.createDatabase(6).close()
         helper.runMigrationsAndValidate(7).use { db ->

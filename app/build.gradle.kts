@@ -56,6 +56,13 @@ dependencies {
     implementation(libs.room.runtime)
     implementation(libs.sqlite.bundled)
     implementation(libs.work.runtime)
+
+    // Leitura de QR no aparelho (modelo incluído na app: funciona sem internet).
+    implementation(libs.mlkit.barcode)
+    implementation(libs.kotlinx.coroutines.play.services)
+    implementation(libs.camerax.camera2)
+    implementation(libs.camerax.lifecycle)
+    implementation(libs.camerax.view)
     ksp(libs.room.compiler)
 
     implementation(platform(libs.compose.bom))
@@ -69,6 +76,7 @@ dependencies {
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.room.testing)
+    androidTestImplementation(libs.zxing.core)
 }
 
 room {

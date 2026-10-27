@@ -1,5 +1,6 @@
 package pt.obraemdia.app.ui.accounts
 
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.Icons
@@ -81,6 +82,8 @@ fun AccountsScreen(
     onPaySupplier: suspend (operationId: String, documentId: String, amount: Money, date: LocalDate, method: PaymentMethod) -> SaveResult,
     onReverse: suspend (movementId: String, reason: String) -> SaveResult,
     onForecast: () -> Unit,
+    onInvoices: () -> Unit,
+    invoicesNetThisYear: Money = Money.ZERO,
     onVoidPurchase: suspend (documentId: String, reason: String) -> SaveResult,
     onMessage: (String) -> Unit,
     onNotReady: (String) -> Unit,
@@ -116,6 +119,16 @@ fun AccountsScreen(
             Button(onClick = onAddExpense, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
                 Text("Adicionar gasto")
             }
+        }
+        item {
+            val year = today.year
+            val yearNet = invoicesNetThisYear
+            pt.obraemdia.app.ui.components.ShortcutRow(
+                title = "Faturas emitidas",
+                subtitle = "Faturado em $year: ${yearNet.format()} sem IVA · ler QR ou PDF",
+                icon = Icons.Filled.Description,
+                onClick = onInvoices,
+            )
         }
         item {
             SectionCard(icon = Icons.AutoMirrored.Filled.ReceiptLong, title = "Por pagar a fornecedores",

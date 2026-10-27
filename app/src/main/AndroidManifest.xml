@@ -3,6 +3,9 @@
 
     <!-- Só para o resumo diário opcional; pedida quando se ligam os lembretes. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Leitura em direto do QR das faturas; pedida só ao abrir o leitor. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
 
     <!-- allowBackup=false: os dados não saem do aparelho por defeito; o backup é exportado pela própria app. -->
     <application

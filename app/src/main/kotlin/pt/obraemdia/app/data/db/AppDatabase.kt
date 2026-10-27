@@ -17,8 +17,8 @@ class Converters {
 }
 
 @Database(
-    version = 7,
-    autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3), AutoMigration(from = 3, to = 4), AutoMigration(from = 4, to = 5), AutoMigration(from = 5, to = 6), AutoMigration(from = 6, to = 7)],
+    version = 8,
+    autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3), AutoMigration(from = 3, to = 4), AutoMigration(from = 4, to = 5), AutoMigration(from = 5, to = 6), AutoMigration(from = 6, to = 7), AutoMigration(from = 7, to = 8)],
     entities = [
         WorkerEntity::class,
         ClientEntity::class,
@@ -40,6 +40,7 @@ class Converters {
         AttachmentEntity::class,
         NoteEntity::class,
         ChecklistItemEntity::class,
+        IssuedInvoiceEntity::class,
     ],
 )
 @TypeConverters(Converters::class)
@@ -57,6 +58,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun jobFactsDao(): JobFactsDao
     abstract fun agreementDao(): AgreementDao
     abstract fun mediaDao(): MediaDao
+    abstract fun invoiceDao(): IssuedInvoiceDao
     abstract fun demoDao(): pt.obraemdia.app.demo.DemoDao
 
     companion object {

@@ -345,9 +345,37 @@ interface MediaDao {
     )
     fun observeCounts(): Flow<List<MediaCounts>>
 
+    @Query("SELECT * FROM attachments WHERE deletedAt IS NULL AND id IN (SELECT attachmentId FROM issued_invoices WHERE attachmentId IS NOT NULL)")
+    fun observeInvoiceAttachments(): Flow<List<AttachmentEntity>>
+
     /** Caminhos de anexos de obras fictícias, para apagar os ficheiros depois de remover a demonstração. */
     @Query("SELECT relativePath FROM attachments WHERE isDemo = 1 OR jobId IN (SELECT id FROM jobs WHERE isDemo = 1)")
     suspend fun demoAttachmentPaths(): List<String>
 }
 
 data class MediaCounts(val jobId: String, val photos: Int, val notes: Int, val openItems: Int)
+
+@Dao
+interface IssuedInvoiceDao {
+    /** IGNORE: operationId e as chaves de duplicado são únicos; -1 = não gravado. */
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insert(i: IssuedInvoiceEntity): Long
+
+    @Update suspend fun update(i: IssuedInvoiceEntity)
+
+    @Query("SELECT * FROM issued_invoices WHERE id = :id")
+    suspend fun get(id: String): IssuedInvoiceEntity?
+
+    @Query("SELECT * FROM issued_invoices WHERE deletedAt IS NULL ORDER BY issueDate DESC, createdAt DESC")
+    fun observeAll(): Flow<List<IssuedInvoiceEntity>>
+
+    @Query(
+        """
+        SELECT * FROM issued_invoices WHERE deletedAt IS NULL AND (
+            (:atcud IS NOT NULL AND atcud = :atcud)
+            OR (issuerNif = :nif AND docType = :type AND docNumber = :number)
+        ) LIMIT 1
+        """,
+    )
+    suspend fun findDuplicate(nif: String, type: String, number: String, atcud: String?): IssuedInvoiceEntity?
+}

@@ -57,6 +57,11 @@ data class SaveResult(val ok: Boolean, val message: String)
 @OptIn(ExperimentalCoroutinesApi::class)
 class AppViewModel(private val container: AppContainer) : ViewModel() {
 
+    companion object {
+        /** Limite anual a vigiar (valor sem IVA, por NIF). Vazio = sem limite. Nunca é assumido. */
+        const val INVOICE_LIMIT_KEY = "invoice_year_limit_cents"
+    }
+
     private val repo = container.repository
 
     val today: LocalDate get() = LocalDate.now(AGENDA_ZONE)
@@ -295,6 +300,42 @@ class AppViewModel(private val container: AppContainer) : ViewModel() {
     }
 
     val media get() = container.media
+
+    val issuedInvoices: StateFlow<List<pt.obraemdia.app.data.db.IssuedInvoiceEntity>> =
+        container.invoices.all.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    suspend fun recordInvoice(input: pt.obraemdia.app.data.repo.IssuedInvoiceInput): SaveResult = runCatching {
+        when (val o = container.invoices.record(input)) {
+            pt.obraemdia.app.data.repo.InvoiceOutcome.Saved -> SaveResult(true, "Fatura registada")
+            is pt.obraemdia.app.data.repo.InvoiceOutcome.Duplicate ->
+                SaveResult(false, "Esta fatura já está registada (${o.existing.docNumber} de ${o.existing.issueDate.shortLabel()})")
+            is pt.obraemdia.app.data.repo.InvoiceOutcome.Rejected -> SaveResult(false, o.message)
+        }
+    }.getOrElse { SaveResult(false, "Não foi possível gravar: ${it.message}") }
+
+    /** id do anexo → caminho relativo, para "Ver PDF". */
+    val invoiceAttachments: StateFlow<Map<String, String>> =
+        container.database.mediaDao().observeInvoiceAttachments().map { l -> l.associate { it.id to it.relativePath } }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
+
+    fun invoiceAttachmentFile(relativePath: String) = container.invoices.attachmentFile(relativePath)
+
+    /** Resultado do leitor de câmara, entregue ao ecrã de faturas. */
+    val scannedQr = kotlinx.coroutines.flow.MutableStateFlow<pt.obraemdia.domain.fiscalqr.AtQrDocument?>(null)
+
+    suspend fun cancelInvoice(id: String, reason: String): SaveResult = save {
+        container.invoices.cancel(id, reason)
+        "Registo anulado (fica no histórico)"
+    }
+
+    suspend fun setInvoiceLimit(limit: Money?): SaveResult = save {
+        container.repository.transaction {
+            container.database.settingsDao().put(
+                pt.obraemdia.app.data.db.SettingEntity(INVOICE_LIMIT_KEY, limit?.cents?.toString().orEmpty()),
+            )
+        }
+        if (limit == null) "Limite removido" else "Limite anual de ${limit.format()} gravado"
+    }
 
     suspend fun deleteDemoData(): SaveResult =
         runCatching { container.demoSeeder.deleteDemoData() }.fold(

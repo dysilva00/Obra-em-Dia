@@ -110,3 +110,13 @@ Registo das escolhas reversíveis tomadas durante o desenvolvimento. A especific
 - **Sem repetições:** guarda-se a assinatura do último resumo enviado e o mesmo conteúdo não volta a ser notificado. Cada resumo substitui o anterior, por isso as notificações não se acumulam.
 - **Permissão:** `POST_NOTIFICATIONS` é pedida só quando se liga o resumo. Se for recusada, nada mais deixa de funcionar e os avisos continuam no Início.
 - **Por defeito está desligado.** As preferências ficam nas definições locais, que entram no backup.
+
+## Faturas emitidas e código QR da AT
+
+- **Leitor do QR** (`domain/fiscalqr/AtQr`): segue as Especificações Técnicas do Código QR da AT, versão 1.1 (Portaria n.º 195/2020), confirmadas no documento oficial a 27/10/2026. Os testes usam os exemplos desse documento.
+- **Valores:** o valor sem impostos é O − N (inclui bases isentas e não sujeitas). As retenções vêm do campo P. Um documento com E:A (anulado) não pode ser registado, e só FT, FS, FR, NC e ND contam; as notas de crédito subtraem.
+- **Leitura no aparelho:** ML Kit Barcode com o modelo incluído na app, sem internet. Nos PDFs renderizam-se a primeira e a última página a ~200 ppp com `PdfRenderer`, porque a AT permite o QR em qualquer uma delas. Se o PDF não tiver QR, fica anexado e os valores introduzem-se à mão.
+- **Câmara:** CameraX + ML Kit em direto. A permissão de câmara é pedida só ao abrir o leitor; se for recusada, ficam o PDF e a introdução manual.
+- **Totais por ano e por NIF do emitente:** o valor declarado é de cada contribuinte. O limite anual a vigiar é opcional e configurável; a app não assume nenhum limite fiscal.
+- **Duplicados:** bloqueados pelo NIF + tipo + número ou pelo ATCUD. O PDF só é copiado depois de confirmar que a fatura não é duplicada.
+- **Natureza do registo:** uma fatura emitida não é um recebimento; os recebimentos continuam nos movimentos. É um controlo interno e não comunica nada à AT.

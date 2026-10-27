@@ -494,3 +494,50 @@ data class ChecklistItemEntity(
     val deletedAt: Long? = null,
     val isDemo: Boolean = false,
 )
+
+enum class InvoiceSource { QR_CAMERA, PDF, MANUAL }
+
+/**
+ * Fatura emitida por um dos trabalhadores a um cliente, para controlar o valor faturado no ano.
+ * Valores COM SINAL (nota de crédito negativa). Não é um recebimento: o dinheiro entra em cash_movements.
+ */
+@Entity(
+    tableName = "issued_invoices",
+    foreignKeys = [
+        ForeignKey(JobEntity::class, ["id"], ["jobId"], onDelete = ForeignKey.RESTRICT),
+        ForeignKey(AttachmentEntity::class, ["id"], ["attachmentId"], onDelete = ForeignKey.RESTRICT),
+    ],
+    indices = [
+        Index("jobId"), Index("attachmentId"), Index("issueDate"),
+        Index(value = ["operationId"], unique = true),
+        // Duplicados: o mesmo documento do mesmo emitente só existe uma vez (NULLs não colidem).
+        Index(value = ["issuerNif", "docType", "docNumber"], unique = true),
+        Index(value = ["atcud"], unique = true),
+    ],
+)
+data class IssuedInvoiceEntity(
+    @PrimaryKey val id: String,
+    val operationId: String,
+    val issuerNif: String,
+    val buyerNif: String?,
+    val buyerName: String?,
+    /** FT, FS, FR, NC ou ND. */
+    val docType: String,
+    val docNumber: String,
+    val atcud: String?,
+    val issueDate: LocalDate,
+    /** Sem impostos (O − N do QR). */
+    val netCents: Long,
+    val vatCents: Long,
+    val grossCents: Long,
+    val withholdingCents: Long = 0,
+    val jobId: String? = null,
+    val attachmentId: String? = null,
+    val source: InvoiceSource,
+    val rawQr: String? = null,
+    val note: String? = null,
+    val createdAt: Long,
+    val deletedAt: Long? = null,
+    val deleteReason: String? = null,
+    val isDemo: Boolean = false,
+)

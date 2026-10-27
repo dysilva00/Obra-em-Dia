@@ -9,6 +9,7 @@ import kotlinx.coroutines.launch
 import pt.obraemdia.app.data.db.AppDatabase
 import pt.obraemdia.app.data.files.AttachmentStore
 import pt.obraemdia.app.data.repo.Agreement
+import pt.obraemdia.app.data.repo.IssuedInvoices
 import pt.obraemdia.app.data.repo.Media
 import pt.obraemdia.app.data.repo.BusinessSettings
 import pt.obraemdia.app.data.repo.Corrections
@@ -27,6 +28,7 @@ class AppContainer(context: Context) {
     val settings = BusinessSettings(database, repository, System::currentTimeMillis)
     val attachments = AttachmentStore(context)
     val media = Media(database, repository, attachments, System::currentTimeMillis)
+    val invoices = IssuedInvoices(database, repository, attachments, System::currentTimeMillis)
     val demoSeeder = DemoSeeder(database, repository) { paths -> paths.forEach(attachments::delete) }
     val appScope = CoroutineScope(SupervisorJob())
 }

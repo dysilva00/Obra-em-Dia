@@ -35,6 +35,7 @@ Legenda: ✅ concluído e verificado · 🟡 parcial · ⬜ pendente
 - ✅ Exportação em PDF: balanço da obra (interno), resumo para o cliente (sem custos nem taxas internas) e relatório do mês; partilhar ou guardar no telemóvel. CSV dispensado pelo utilizador.
 - ✅ Notas, fotos e checklist por obra: fotos antes/durante/depois (câmara ou galeria, copiadas e comprimidas para a pasta privada), legendas, tarefas e lista de compras, notas editáveis. Verificado no emulador com a câmara virtual.
 - ✅ Lembretes: resumo diário configurável (hora e tipos), com a app fechada, sem repetir o mesmo aviso; permissão pedida só ao ligar. Verificado no emulador (notificação real).
+- ✅ Faturas emitidas: ler QR (câmara), importar PDF (lê o QR da AT dentro do PDF) ou à mão; totais do ano por NIF (sem IVA, impostos, total, retenções), limite opcional, duplicados bloqueados, PDF anexado. Importação de PDF verificada no emulador; leitura pela câmara por verificar no aparelho real.
 - ✅ Design: Material 3 Expressive (beta) e Plus Jakarta Sans.
 - ⬜ Prova no aparelho real: leitura de QR AT
 - ⬜ Prova no aparelho real: seletor de contactos

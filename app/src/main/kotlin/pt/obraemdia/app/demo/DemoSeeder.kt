@@ -9,6 +9,8 @@ import pt.obraemdia.app.data.db.ClientEntity
 import pt.obraemdia.app.data.db.CostAllocationEntity
 import pt.obraemdia.app.data.db.ExpenseCategory
 import pt.obraemdia.app.data.db.InstallmentEntity
+import pt.obraemdia.app.data.db.InvoiceSource
+import pt.obraemdia.app.data.db.IssuedInvoiceEntity
 import pt.obraemdia.app.data.db.NoteEntity
 import pt.obraemdia.app.data.db.ChecklistItemEntity
 import pt.obraemdia.app.data.db.ChecklistKind
@@ -49,6 +51,7 @@ interface DemoDao {
     // Tudo o que está ligado a uma obra fictícia é fictício e sai com ela. Registos de obras reais nunca são tocados.
     @Query("DELETE FROM schedule_entries WHERE isDemo = 1 OR jobId IN (SELECT id FROM jobs WHERE isDemo = 1)") suspend fun deleteSchedule()
     @Query("DELETE FROM time_off WHERE isDemo = 1") suspend fun deleteTimeOff()
+    @Query("DELETE FROM issued_invoices WHERE isDemo = 1 OR jobId IN (SELECT id FROM jobs WHERE isDemo = 1)") suspend fun deleteIssuedInvoices()
     @Query("DELETE FROM attachments WHERE isDemo = 1 OR jobId IN (SELECT id FROM jobs WHERE isDemo = 1)") suspend fun deleteAttachments()
     @Query("DELETE FROM notes WHERE isDemo = 1 OR jobId IN (SELECT id FROM jobs WHERE isDemo = 1)") suspend fun deleteNotes()
     @Query("DELETE FROM checklist_items WHERE isDemo = 1 OR jobId IN (SELECT id FROM jobs WHERE isDemo = 1)") suspend fun deleteChecklist()
@@ -130,7 +133,7 @@ class DemoSeeder(
         val d = db.demoDao()
         val paths = db.mediaDao().demoAttachmentPaths()
         // Ordem inversa das dependências (chaves estrangeiras RESTRICT).
-        d.deleteAttachments(); d.deleteNotes(); d.deleteChecklist()
+        d.deleteIssuedInvoices(); d.deleteAttachments(); d.deleteNotes(); d.deleteChecklist()
         d.deleteSchedule(); d.deleteTimeOff(); d.deleteTimeEntries(); d.deleteCash(); d.deletePurchases(); d.deleteDemoAllocations()
         d.deleteCharges(); d.deleteRevisions(); d.deleteInstallments(); d.deleteClosures(); d.deleteJobs()
         d.deleteSites(); d.keepUsedSites(); d.deleteClients(); d.keepUsedClients()
@@ -258,6 +261,21 @@ class DemoSeeder(
         installment(bath, today.plusDays(10), 1000)
         installment(bath, today.plusDays(35), 1000)
         installment(roof, today.minusDays(3), 650) // vencida: aparece nos alertas
+
+        // Faturas emitidas fictícias (NIF de exemplo válido, valores sem IVA).
+        listOf(
+            Triple(kitchen, "FR ATSIRE01FR/7", today.minusDays(5)) to 60000L,
+            Triple(bath, "FR ATSIRE01FR/8", today.minusDays(12)) to 100000L,
+        ).forEach { (t, net) ->
+            val (jobId, number, date) = t
+            db.invoiceDao().insert(
+                IssuedInvoiceEntity(
+                    id = newId(), operationId = newId(), issuerNif = "123456789", buyerNif = null, buyerName = null,
+                    docType = "FR", docNumber = number, atcud = null, issueDate = date, netCents = net, vatCents = 0, grossCents = net,
+                    jobId = jobId, source = InvoiceSource.MANUAL, createdAt = now, isDemo = true,
+                ),
+            )
+        }
 
         db.mediaDao().insertNote(NoteEntity(newId(), bath, "Cliente quer azulejo branco mate; confirmar a cor das juntas antes de assentar.", now, now, isDemo = true))
         listOf(
