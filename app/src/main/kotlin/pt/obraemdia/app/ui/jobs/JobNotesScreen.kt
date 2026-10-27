@@ -1,7 +1,10 @@
 package pt.obraemdia.app.ui.jobs
 
 import android.graphics.Bitmap
+import android.Manifest
+import android.content.pm.PackageManager
 import android.net.Uri
+import androidx.core.content.ContextCompat
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -108,7 +111,10 @@ fun JobNotesScreen(media: Media, jobId: String, today: LocalDate, onMessage: (St
     }
 }
 
-/** Tirar foto (app de câmara do sistema, sem pedir permissão) ou escolher da galeria. */
+/**
+ * Tirar foto (app de câmara do sistema) ou escolher da galeria. Como a app declara a permissão
+ * CAMERA (leitor de QR), o Android só deixa abrir a câmara do sistema com ela concedida.
+ */
 private class PhotoActions(val take: (AttachmentKind) -> Unit, val pick: (AttachmentKind) -> Unit)
 
 @Composable
@@ -138,11 +144,25 @@ private fun rememberPhotoActions(media: Media, jobId: String, today: LocalDate, 
     val gallery = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) import(uri)
     }
-    val take: (AttachmentKind) -> Unit = { kind ->
-        kindName = kind.name
+    fun openCamera() {
         val file = File(File(context.cacheDir, "camera").apply { mkdirs() }, "foto-${System.currentTimeMillis()}.jpg")
         pendingCamera = file.path
-        camera.launch(FileProvider.getUriForFile(context, "${context.packageName}.files", file))
+        try {
+            camera.launch(FileProvider.getUriForFile(context, "${context.packageName}.files", file))
+        } catch (e: Exception) {
+            // Sem app de câmara ou bloqueada pelo sistema: não fechar a app.
+            pendingCamera = null
+            file.delete()
+            onMessage("Não foi possível abrir a câmara. Use \"Da galeria\".")
+        }
+    }
+    val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) openCamera() else onMessage("Sem autorização para usar a câmara. Use \"Da galeria\" ou autorize nas definições do Android.")
+    }
+    val take: (AttachmentKind) -> Unit = { kind ->
+        kindName = kind.name
+        val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+        if (granted) openCamera() else permission.launch(Manifest.permission.CAMERA)
     }
     val pick: (AttachmentKind) -> Unit = { kind ->
         kindName = kind.name
