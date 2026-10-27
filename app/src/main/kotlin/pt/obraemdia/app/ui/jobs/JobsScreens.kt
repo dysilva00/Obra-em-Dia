@@ -154,6 +154,8 @@ fun JobDetailScreen(
     onChangeAgreement: suspend (AgreementChange) -> SaveResult,
     onAddCharge: suspend (NewCharge) -> SaveResult,
     onCancelCharge: suspend (id: String, reason: String) -> SaveResult,
+    onNotes: () -> Unit,
+    mediaCounts: pt.obraemdia.app.data.db.MediaCounts?,
     onAddInstallment: suspend (LocalDate, Money, String?) -> SaveResult,
     onRemoveInstallment: suspend (String) -> SaveResult,
     onUpdateTime: suspend (id: String, date: LocalDate, minutes: Int, kind: TimeEntryKind, billable: Boolean, note: String?) -> SaveResult,
@@ -215,6 +217,14 @@ fun JobDetailScreen(
                 FilledTonalButton(onClick = onAddExpense, enabled = !closed, modifier = Modifier.heightIn(min = 48.dp)) { Text("Gasto", softWrap = false) }
                 FilledTonalButton(onClick = onRecordPayment, enabled = !closed, modifier = Modifier.heightIn(min = 48.dp)) { Text("Pagamento", softWrap = false) }
                 FilledTonalButton(onClick = onSchedule, enabled = !closed, modifier = Modifier.heightIn(min = 48.dp)) { Text("Agendar", softWrap = false) }
+            }
+        }
+        item {
+            val c = mediaCounts
+            OutlinedButton(onClick = onNotes, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
+                Text(
+                    "Notas, fotos e checklist" + if (c != null) " (${c.photos} foto(s) · ${c.notes} nota(s) · ${c.openItems} por fazer)" else "",
+                )
             }
         }
         item {

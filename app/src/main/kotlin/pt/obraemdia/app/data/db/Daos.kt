@@ -303,3 +303,51 @@ interface AgreementDao {
     @Query("SELECT * FROM work_sites WHERE id = :id")
     suspend fun site(id: String): WorkSiteEntity?
 }
+
+@Dao
+interface MediaDao {
+    @Insert suspend fun insertAttachment(a: AttachmentEntity)
+    @Update suspend fun updateAttachment(a: AttachmentEntity)
+
+    @Query("SELECT * FROM attachments WHERE id = :id")
+    suspend fun attachment(id: String): AttachmentEntity?
+
+    @Query("SELECT * FROM attachments WHERE jobId = :jobId AND deletedAt IS NULL ORDER BY takenOn DESC, createdAt DESC")
+    fun observeAttachments(jobId: String): Flow<List<AttachmentEntity>>
+
+    @Insert suspend fun insertNote(n: NoteEntity)
+    @Update suspend fun updateNote(n: NoteEntity)
+
+    @Query("SELECT * FROM notes WHERE id = :id")
+    suspend fun note(id: String): NoteEntity?
+
+    @Query("SELECT * FROM notes WHERE jobId = :jobId AND deletedAt IS NULL ORDER BY createdAt DESC")
+    fun observeNotes(jobId: String): Flow<List<NoteEntity>>
+
+    @Insert suspend fun insertItem(i: ChecklistItemEntity)
+    @Update suspend fun updateItem(i: ChecklistItemEntity)
+
+    @Query("SELECT * FROM checklist_items WHERE id = :id")
+    suspend fun item(id: String): ChecklistItemEntity?
+
+    @Query("SELECT * FROM checklist_items WHERE jobId = :jobId AND deletedAt IS NULL ORDER BY done, createdAt")
+    fun observeChecklist(jobId: String): Flow<List<ChecklistItemEntity>>
+
+    /** Contagens por obra para a ficha (sem carregar ficheiros). */
+    @Query(
+        """
+        SELECT j.id AS jobId,
+            (SELECT COUNT(*) FROM attachments a WHERE a.jobId = j.id AND a.deletedAt IS NULL) AS photos,
+            (SELECT COUNT(*) FROM notes n WHERE n.jobId = j.id AND n.deletedAt IS NULL) AS notes,
+            (SELECT COUNT(*) FROM checklist_items c WHERE c.jobId = j.id AND c.deletedAt IS NULL AND c.done = 0) AS openItems
+        FROM jobs j
+        """,
+    )
+    fun observeCounts(): Flow<List<MediaCounts>>
+
+    /** Caminhos de anexos de obras fictícias, para apagar os ficheiros depois de remover a demonstração. */
+    @Query("SELECT relativePath FROM attachments WHERE isDemo = 1 OR jobId IN (SELECT id FROM jobs WHERE isDemo = 1)")
+    suspend fun demoAttachmentPaths(): List<String>
+}
+
+data class MediaCounts(val jobId: String, val photos: Int, val notes: Int, val openItems: Int)

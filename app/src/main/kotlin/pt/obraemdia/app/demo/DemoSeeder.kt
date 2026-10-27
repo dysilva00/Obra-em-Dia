@@ -9,6 +9,9 @@ import pt.obraemdia.app.data.db.ClientEntity
 import pt.obraemdia.app.data.db.CostAllocationEntity
 import pt.obraemdia.app.data.db.ExpenseCategory
 import pt.obraemdia.app.data.db.InstallmentEntity
+import pt.obraemdia.app.data.db.NoteEntity
+import pt.obraemdia.app.data.db.ChecklistItemEntity
+import pt.obraemdia.app.data.db.ChecklistKind
 import pt.obraemdia.app.data.db.PurchaseDocumentEntity
 import pt.obraemdia.app.data.db.JobEntity
 import pt.obraemdia.app.data.db.PaymentMethod
@@ -46,6 +49,9 @@ interface DemoDao {
     // Tudo o que está ligado a uma obra fictícia é fictício e sai com ela. Registos de obras reais nunca são tocados.
     @Query("DELETE FROM schedule_entries WHERE isDemo = 1 OR jobId IN (SELECT id FROM jobs WHERE isDemo = 1)") suspend fun deleteSchedule()
     @Query("DELETE FROM time_off WHERE isDemo = 1") suspend fun deleteTimeOff()
+    @Query("DELETE FROM attachments WHERE isDemo = 1 OR jobId IN (SELECT id FROM jobs WHERE isDemo = 1)") suspend fun deleteAttachments()
+    @Query("DELETE FROM notes WHERE isDemo = 1 OR jobId IN (SELECT id FROM jobs WHERE isDemo = 1)") suspend fun deleteNotes()
+    @Query("DELETE FROM checklist_items WHERE isDemo = 1 OR jobId IN (SELECT id FROM jobs WHERE isDemo = 1)") suspend fun deleteChecklist()
     @Query("DELETE FROM time_entries WHERE isDemo = 1 OR jobId IN (SELECT id FROM jobs WHERE isDemo = 1)") suspend fun deleteTimeEntries()
 
     /**
@@ -98,7 +104,12 @@ private const val DEMO_ONLY_PURCHASES = """
  * Primeiro arranque: cria as duas pessoas com nomes e taxas PROVISÓRIOS (a confirmar, spec §20)
  * e um conjunto de dados fictícios marcado com isDemo, relativo à data de hoje.
  */
-class DemoSeeder(private val db: AppDatabase, private val repo: ObraRepository) {
+class DemoSeeder(
+    private val db: AppDatabase,
+    private val repo: ObraRepository,
+    /** Apaga os ficheiros dos anexos removidos (só depois de a transação terminar bem). */
+    private val deleteFiles: (List<String>) -> Unit = {},
+) {
 
     suspend fun seedIfFirstRun(today: LocalDate = LocalDate.now(AGENDA_ZONE)) = repo.transaction {
         if (db.demoDao().workerCount() > 0) return@transaction
@@ -110,13 +121,21 @@ class DemoSeeder(private val db: AppDatabase, private val repo: ObraRepository) 
         seedDemo(today, now, p1, p2)
     }
 
-    suspend fun deleteDemoData() = repo.transaction {
+    suspend fun deleteDemoData() {
+        val paths = repo.transaction { deleteDemoRows() }
+        deleteFiles(paths)
+    }
+
+    private suspend fun deleteDemoRows(): List<String> {
         val d = db.demoDao()
+        val paths = db.mediaDao().demoAttachmentPaths()
         // Ordem inversa das dependências (chaves estrangeiras RESTRICT).
+        d.deleteAttachments(); d.deleteNotes(); d.deleteChecklist()
         d.deleteSchedule(); d.deleteTimeOff(); d.deleteTimeEntries(); d.deleteCash(); d.deletePurchases(); d.deleteDemoAllocations()
         d.deleteCharges(); d.deleteRevisions(); d.deleteInstallments(); d.deleteClosures(); d.deleteJobs()
         d.deleteSites(); d.keepUsedSites(); d.deleteClients(); d.keepUsedClients()
         db.settingsDao().put(SettingEntity(Settings.OPENING_BALANCE_CENTS, "0"))
+        return paths
     }
 
     private suspend fun seedDemo(today: LocalDate, now: Long, p1: WorkerEntity, p2: WorkerEntity) {
@@ -239,5 +258,16 @@ class DemoSeeder(private val db: AppDatabase, private val repo: ObraRepository) 
         installment(bath, today.plusDays(10), 1000)
         installment(bath, today.plusDays(35), 1000)
         installment(roof, today.minusDays(3), 650) // vencida: aparece nos alertas
+
+        db.mediaDao().insertNote(NoteEntity(newId(), bath, "Cliente quer azulejo branco mate; confirmar a cor das juntas antes de assentar.", now, now, isDemo = true))
+        listOf(
+            Triple(ChecklistKind.TASK, "Impermeabilizar base do duche", true),
+            Triple(ChecklistKind.TASK, "Assentar azulejo das paredes", false),
+            Triple(ChecklistKind.TASK, "Montar loiças e torneiras", false),
+            Triple(ChecklistKind.SHOPPING, "Cola flexível C2 (4 sacos)", false),
+            Triple(ChecklistKind.SHOPPING, "Silicone sanitário branco", false),
+        ).forEach { (kind, text, done) ->
+            db.mediaDao().insertItem(ChecklistItemEntity(newId(), bath, kind, text, done, now, now, isDemo = true))
+        }
     }
 }

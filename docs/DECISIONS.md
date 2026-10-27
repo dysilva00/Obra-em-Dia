@@ -84,3 +84,13 @@ Registo das escolhas reversíveis tomadas durante o desenvolvimento. A especific
 - **Geração:** usa o `PdfDocument` nativo do Android, sem bibliotecas nem serviços externos.
 - **Partilhar:** gera o PDF em `cache/exports/` (a única pasta exposta pelo FileProvider; os ficheiros com mais de 24 h são limpos) e abre o menu de partilha. O envio é sempre manual.
 - **Guardar:** usa o seletor de ficheiros do Android (`CreateDocument`). O relatório é reconstruído quando o seletor devolve o destino, por isso funciona mesmo que a atividade seja recriada.
+
+## Fotografias, notas e checklist
+
+- **Anexos:** ficam em `filesDir/attachments/<uuid>.jpg`. A base guarda o caminho relativo, o tamanho e o SHA-256 (para validar o backup). Uma importação só está concluída depois de o ficheiro ser copiado: os URIs da galeria e da câmara são temporários.
+- **Compressão:** lado maior ≤ 2048 px, JPEG 85 e orientação EXIF aplicada. Os PDFs são copiados tal como estão. Abaixo de 20 MB livres, a importação é recusada com uma mensagem compreensível.
+- **Ordem da gravação:** primeiro a cópia (para um ficheiro temporário, depois renomeado) e só depois o registo na base. Se o registo falhar, o ficheiro copiado é apagado.
+- **Câmara:** a foto é tirada pela app de câmara do sistema (`TakePicture`) para `cache/camera/` através do FileProvider, por isso não é preciso pedir permissão de câmara. O ficheiro temporário é apagado depois de copiado.
+- **Galeria:** usa o Photo Picker do Android, sem permissão de armazenamento.
+- **Obras encerradas:** fotos, notas e checklist não têm impacto financeiro e podem ser alteradas mesmo com a obra encerrada.
+- **Remover:** remover uma foto, nota ou item usa eliminação lógica e fica no histórico. Remover a demonstração apaga também os ficheiros, só depois de a transação terminar bem.

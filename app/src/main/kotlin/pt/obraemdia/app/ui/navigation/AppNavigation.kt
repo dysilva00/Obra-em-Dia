@@ -75,6 +75,7 @@ import kotlin.reflect.KClass
 @Serializable data class EditJobRoute(val jobId: String)
 @Serializable data object SettingsRoute
 @Serializable data object ForecastRoute
+@Serializable data class JobNotesRoute(val jobId: String)
 
 private data class Tab(val route: Any, val routeClass: KClass<*>, val label: String, val icon: ImageVector)
 
@@ -96,6 +97,7 @@ private fun NavDestination?.title(): String = when {
     hasRoute(EditJobRoute::class) -> "Editar obra"
     hasRoute(SettingsRoute::class) -> "Definições"
     hasRoute(ForecastRoute::class) -> "Projeções"
+    hasRoute(JobNotesRoute::class) -> "Notas, fotos e checklist"
     hasRoute(JobDetailRoute::class) -> "Obra"
     else -> tabs.firstOrNull { hasRoute(it.routeClass) }?.label.orEmpty()
 }
@@ -108,6 +110,7 @@ fun AppNavigation() {
     val snapshot by vm.snapshot.collectAsStateWithLifecycle()
     val agenda by vm.agenda.collectAsStateWithLifecycle()
     val alerts by vm.alerts.collectAsStateWithLifecycle()
+    val mediaCounts by vm.mediaCounts.collectAsStateWithLifecycle()
 
     val nav = rememberNavController()
     val backStack by nav.currentBackStackEntryAsState()
@@ -220,6 +223,8 @@ fun AppNavigation() {
                     onChangeAgreement = { c -> vm.changeAgreement(jobId, c) },
                     onAddCharge = vm::addCharge,
                     onCancelCharge = vm::cancelCharge,
+                    onNotes = { nav.navigate(JobNotesRoute(jobId)) },
+                    mediaCounts = mediaCounts[jobId],
                     onAddInstallment = { d, a, n -> vm.addInstallment(jobId, d, a, n) },
                     onRemoveInstallment = vm::removeInstallment,
                     onUpdateTime = vm::updateTimeEntry,
@@ -244,6 +249,7 @@ fun AppNavigation() {
                 val clients by vm.clients.collectAsStateWithLifecycle()
                 snap.summary(id)?.let { EditJobScreen(vm, it, clients, snap.isClosed(id), finished) }
             }
+            composable<JobNotesRoute> { entry -> pt.obraemdia.app.ui.jobs.JobNotesScreen(vm.media, entry.toRoute<JobNotesRoute>().jobId, vm.today, message) }
             composable<ForecastRoute> { ForecastScreen(vm, snap) }
             composable<SettingsRoute> {
                 val timeOff by vm.timeOff.collectAsStateWithLifecycle()

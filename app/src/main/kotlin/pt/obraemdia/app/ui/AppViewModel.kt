@@ -6,6 +6,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import pt.obraemdia.app.AppContainer
 import pt.obraemdia.app.data.db.ScheduleRow
@@ -62,6 +63,10 @@ class AppViewModel(private val container: AppContainer) : ViewModel() {
 
     val snapshot: StateFlow<Snapshot?> =
         repo.snapshot.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    val mediaCounts: StateFlow<Map<String, pt.obraemdia.app.data.db.MediaCounts>> =
+        container.media.counts.map { list -> list.associateBy { it.jobId } }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
     val clients: StateFlow<List<pt.obraemdia.app.data.db.ClientEntity>> =
         repo.clients.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -282,6 +287,8 @@ class AppViewModel(private val container: AppContainer) : ViewModel() {
         container.agreement.removeInstallment(id)
         "Prestação removida (fica no histórico)"
     }
+
+    val media get() = container.media
 
     suspend fun deleteDemoData(): SaveResult =
         runCatching { container.demoSeeder.deleteDemoData() }.fold(

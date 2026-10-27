@@ -5,7 +5,7 @@ Legenda: ✅ concluído e verificado · 🟡 parcial · ⬜ pendente
 ## Verificação
 
 - `gradlew :domain:test`: 46 testes de regras (previsão de caixa, dinheiro, IVA, repartição, custos e IVA recuperável, tipos de documento, NIF, agenda/conflitos, sugestão de dias livres, cobrança, saldos, estados, encerramento).
-- `gradlew connectedDebugAndroidTest`: 51 testes no emulador (idempotência, taxas históricas, transações, chaves estrangeiras, remoção de demonstração, agendamento com conflitos, estados, cancelamento, gastos/repartições/duplicados/crédito/notas de crédito, estornos, correção e anulação de horas, anulação de compras, encerramento/bloqueio/reabertura/revisões, acordo/extras/materiais/edição, definições/indisponibilidades, previsão e alertas, PDFs válidos e resumo do cliente sem dados internos, migrações v1→…→v6).
+- `gradlew connectedDebugAndroidTest`: 56 testes no emulador (idempotência, taxas históricas, transações, chaves estrangeiras, remoção de demonstração, agendamento com conflitos, estados, cancelamento, gastos/repartições/duplicados/crédito/notas de crédito, estornos, correção e anulação de horas, anulação de compras, encerramento/bloqueio/reabertura/revisões, acordo/extras/materiais/edição, definições/indisponibilidades, previsão e alertas, PDFs válidos e resumo do cliente sem dados internos, fotos/notas/checklist, migrações v1→…→v7).
   **Atenção:** este comando desinstala a app no fim e apaga os dados do emulador.
 - Verificado manualmente no emulador (API 37): navegação, letra a 130 %, registo de pagamento com duplo toque (gravado uma única vez) e persistência depois de fechar a app à força.
 
@@ -33,6 +33,7 @@ Legenda: ✅ concluído e verificado · 🟡 parcial · ⬜ pendente
 - ✅ Projeções 30/60/90 dias (Contas → Projeções e Início): cenário confirmado vs. com propostas, por mês, ponto mais baixo, vencidos, previsão incompleta, adiamento simulado e pressupostos.
 - ✅ Alertas no Início: prestações e faturas vencidas, sobreposições, obras em espera a rever, dados em falta.
 - ✅ Exportação em PDF: balanço da obra (interno), resumo para o cliente (sem custos nem taxas internas) e relatório do mês; partilhar ou guardar no telemóvel. CSV dispensado pelo utilizador.
+- ✅ Notas, fotos e checklist por obra: fotos antes/durante/depois (câmara ou galeria, copiadas e comprimidas para a pasta privada), legendas, tarefas e lista de compras, notas editáveis. Verificado no emulador com a câmara virtual.
 - ⬜ Prova no aparelho real: leitura de QR AT
 - ⬜ Prova no aparelho real: seletor de contactos
 - ⬜ Exportação via SAF e ciclo de backup/restauro com anexo

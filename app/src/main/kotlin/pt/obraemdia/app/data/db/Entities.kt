@@ -429,3 +429,68 @@ data class InstallmentEntity(
     val deletedAt: Long? = null,
     val isDemo: Boolean = false,
 )
+
+enum class AttachmentKind { BEFORE, DURING, AFTER, DOCUMENT }
+
+/**
+ * Ficheiro copiado para a pasta privada da app (filesDir/attachments). [relativePath] é relativo
+ * a filesDir: nunca um caminho absoluto nem um URI temporário (sobrevive a reinstalação via backup).
+ */
+@Entity(
+    tableName = "attachments",
+    foreignKeys = [
+        ForeignKey(JobEntity::class, ["id"], ["jobId"], onDelete = ForeignKey.RESTRICT),
+        ForeignKey(PurchaseDocumentEntity::class, ["id"], ["purchaseDocumentId"], onDelete = ForeignKey.RESTRICT),
+    ],
+    indices = [Index("jobId"), Index("purchaseDocumentId"), Index(value = ["relativePath"], unique = true)],
+)
+data class AttachmentEntity(
+    @PrimaryKey val id: String,
+    val jobId: String?,
+    val purchaseDocumentId: String? = null,
+    val kind: AttachmentKind,
+    val relativePath: String,
+    val mimeType: String,
+    val sizeBytes: Long,
+    /** SHA-256 do ficheiro guardado, para validar backups. */
+    val sha256: String,
+    val caption: String? = null,
+    val takenOn: LocalDate,
+    val createdAt: Long,
+    val deletedAt: Long? = null,
+    val isDemo: Boolean = false,
+)
+
+@Entity(
+    tableName = "notes",
+    foreignKeys = [ForeignKey(JobEntity::class, ["id"], ["jobId"], onDelete = ForeignKey.RESTRICT)],
+    indices = [Index("jobId")],
+)
+data class NoteEntity(
+    @PrimaryKey val id: String,
+    val jobId: String,
+    val text: String,
+    val createdAt: Long,
+    val updatedAt: Long,
+    val deletedAt: Long? = null,
+    val isDemo: Boolean = false,
+)
+
+enum class ChecklistKind { TASK, SHOPPING }
+
+@Entity(
+    tableName = "checklist_items",
+    foreignKeys = [ForeignKey(JobEntity::class, ["id"], ["jobId"], onDelete = ForeignKey.RESTRICT)],
+    indices = [Index("jobId")],
+)
+data class ChecklistItemEntity(
+    @PrimaryKey val id: String,
+    val jobId: String,
+    val kind: ChecklistKind,
+    val text: String,
+    val done: Boolean = false,
+    val createdAt: Long,
+    val updatedAt: Long,
+    val deletedAt: Long? = null,
+    val isDemo: Boolean = false,
+)

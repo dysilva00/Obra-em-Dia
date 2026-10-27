@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Só a pasta de exportações temporárias é partilhável com outras apps. -->
+<!-- Só pastas temporárias são expostas a outras apps; os anexos privados nunca. -->
 <paths>
     <cache-path name="exports" path="exports/" />
+    <!-- Fotografia temporária da câmara; é copiada para a pasta privada e apagada. -->
+    <cache-path name="camera" path="camera/" />
 </paths>

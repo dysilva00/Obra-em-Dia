@@ -58,6 +58,17 @@ class MigrationTest {
     }
 
     @Test
+    fun v6_para_v7_cria_anexos_notas_e_checklist() {
+        helper.createDatabase(6).close()
+        helper.runMigrationsAndValidate(7).use { db ->
+            db.prepare("SELECT (SELECT COUNT(*) FROM attachments) + (SELECT COUNT(*) FROM notes) + (SELECT COUNT(*) FROM checklist_items)").use { st ->
+                assertTrue(st.step())
+                assertEquals(0L, st.getLong(0))
+            }
+        }
+    }
+
+    @Test
     fun v5_para_v6_cria_prestacoes() {
         helper.createDatabase(5).close()
         helper.runMigrationsAndValidate(6).use { db ->
