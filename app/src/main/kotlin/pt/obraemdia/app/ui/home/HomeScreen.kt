@@ -21,10 +21,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import pt.obraemdia.app.demo.DemoData
+import pt.obraemdia.app.data.repo.Snapshot
+import pt.obraemdia.app.ui.AgendaState
 import pt.obraemdia.app.ui.components.LabelValue
 import pt.obraemdia.app.ui.components.SectionCard
 import pt.obraemdia.app.ui.formatMinutes
@@ -34,14 +39,33 @@ import pt.obraemdia.app.ui.shortLabel
 import pt.obraemdia.app.ui.theme.AppColors
 import pt.obraemdia.app.ui.theme.MoneyLarge
 import pt.obraemdia.domain.job.JobStatus
-import pt.obraemdia.domain.schedule.AGENDA_ZONE
+import pt.obraemdia.domain.money.Money
+import pt.obraemdia.domain.money.sum
+import pt.obraemdia.domain.money.sumMoney
+import pt.obraemdia.domain.schedule.TimeSlot
+import java.time.LocalDate
+import java.time.YearMonth
 
 @Composable
-fun HomeScreen(onOpenJob: (String) -> Unit, onNotReady: (String) -> Unit) {
-    val d = DemoData
-    val monthBalance = d.monthReceived - d.monthPaid
-    val accumulated = d.openingBalance + monthBalance
-    val todayBookings = d.bookings.filter { it.slot.start.atZone(AGENDA_ZONE).toLocalDate() == d.today }
+fun HomeScreen(
+    snapshot: Snapshot,
+    agenda: AgendaState?,
+    today: LocalDate,
+    onOpenJob: (String) -> Unit,
+    onRecordTime: () -> Unit,
+    onRecordPayment: () -> Unit,
+    onNotReady: (String) -> Unit,
+) {
+    var month by rememberSaveable { mutableStateOf(YearMonth.from(today)) }
+    val monthMovements = snapshot.movementsIn(month)
+    val received = monthMovements.filter { it.kind.inflow }.sumMoney { Money(it.amountCents) }
+    val paid = monthMovements.filter { !it.kind.inflow }.sumMoney { Money(it.amountCents) }
+    val summaries = snapshot.summaries
+    val toReceive = summaries.mapNotNull { it.balance?.balance }.filter { it.isPositive }.sum()
+    val unknownDue = summaries.count { it.dueGross == null && it.job.status != JobStatus.CANCELLED }
+    val todaySlot = TimeSlot.wholeDay(today)
+    val todayItems = agenda?.items.orEmpty().filter { it.booking.slot.overlaps(todaySlot) }
+    val monthEntries = snapshot.timeEntries.filter { YearMonth.from(it.date) == month }
 
     LazyColumn(
         contentPadding = PaddingValues(16.dp),
@@ -50,52 +74,56 @@ fun HomeScreen(onOpenJob: (String) -> Unit, onNotReady: (String) -> Unit) {
     ) {
         item {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                IconButton(onClick = { onNotReady("Mudar de mês") }) {
+                IconButton(onClick = { month = month.minusMonths(1) }) {
                     Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Mês anterior")
                 }
-                Text(d.month.label(), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-                IconButton(onClick = { onNotReady("Mudar de mês") }) {
+                Text(month.label(), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+                IconButton(onClick = { month = month.plusMonths(1) }) {
                     Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Mês seguinte")
                 }
             }
         }
 
-        item { QuickActions(onNotReady) }
+        item { QuickActions(onRecordTime, onRecordPayment, onNotReady) }
 
         item {
-            SectionCard("Saldo acumulado", caption = "Real · em ${d.today.shortLabel()} · movimentos registados na app, não é o saldo bancário") {
-                Text(accumulated.format(), style = MoneyLarge)
-                LabelValue("Saldo inicial", d.openingBalance.format())
+            SectionCard("Saldo acumulado", caption = "Real · em ${today.shortLabel()} · movimentos registados na app, não é o saldo bancário") {
+                Text(snapshot.accumulatedBalance(today).format(), style = MoneyLarge)
+                LabelValue("Saldo inicial", snapshot.openingBalance.format())
             }
         }
 
         item {
-            SectionCard("Este mês", caption = "Real · ${d.month.label()}") {
-                LabelValue("Recebido", d.monthReceived.format(), AppColors.Positive)
-                LabelValue("Pago", d.monthPaid.format())
-                LabelValue("Saldo do mês", monthBalance.format())
+            SectionCard("Movimentos do mês", caption = "Real · ${month.label()}") {
+                LabelValue("Recebido", received.format(), AppColors.Positive)
+                LabelValue("Pago", paid.format())
+                LabelValue("Saldo do mês", (received - paid).format())
             }
         }
 
         item {
-            SectionCard("Em aberto", caption = "Posição em ${d.today.shortLabel()} · não são movimentos do mês") {
-                LabelValue("Por receber de clientes", d.toReceive.format())
-                LabelValue("Por pagar a fornecedores", "—")
-            }
-        }
-
-        item {
-            SectionCard("Hoje", caption = d.today.longLabel()) {
-                if (todayBookings.isEmpty()) {
-                    Text("Sem marcações para hoje.")
+            SectionCard("Em aberto", caption = "Posição em ${today.shortLabel()} · não são movimentos do mês") {
+                LabelValue("Por receber de clientes", toReceive.format())
+                if (unknownDue > 0) {
+                    Text(
+                        "$unknownDue obra(s) sem preço ou IVA definido não entram neste total.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
-                todayBookings.forEach { b ->
-                    val job = d.jobs.first { it.id == b.jobId }
-                    TextButton(onClick = { onOpenJob(job.id) }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+            }
+        }
+
+        item {
+            SectionCard("Hoje", caption = today.longLabel()) {
+                if (todayItems.isEmpty()) Text("Sem marcações para hoje.")
+                todayItems.forEach { item ->
+                    val b = item.booking
+                    TextButton(onClick = { onOpenJob(b.jobId) }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
                         Column(Modifier.fillMaxWidth()) {
-                            Text(job.title, style = MaterialTheme.typography.bodyLarge)
+                            Text(b.label, style = MaterialTheme.typography.bodyLarge)
                             Text(
-                                "${job.address} · ${b.workerIds.joinToString(" e ") { d.workerName(it) }}",
+                                b.workerIds.sorted().joinToString(" e ") { snapshot.workerName(it) },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -106,39 +134,42 @@ fun HomeScreen(onOpenJob: (String) -> Unit, onNotReady: (String) -> Unit) {
         }
 
         item {
-            SectionCard("Horas registadas", caption = "Real · ${d.month.label()}") {
-                d.workers.forEach { w ->
-                    val minutes = d.jobs.flatMap { it.sale.timeEntries }.filter { it.workerId == w.id }.sumOf { it.minutes }
-                    LabelValue(w.name, formatMinutes(minutes))
+            SectionCard("Horas registadas", caption = "Real · ${month.label()}") {
+                snapshot.workers.forEach { w ->
+                    LabelValue(w.name, formatMinutes(monthEntries.filter { it.workerId == w.id }.sumOf { it.minutes }))
                 }
             }
         }
 
         item {
             SectionCard("Obras") {
-                LabelValue("Em curso", d.jobs.count { it.status == JobStatus.IN_PROGRESS }.toString())
-                LabelValue("Concluídas por cobrar", d.jobs.count { it.status == JobStatus.COMPLETED && it.balance.balance.isPositive }.toString())
-                LabelValue("Em espera", d.jobs.count { it.status == JobStatus.ON_HOLD }.toString())
+                LabelValue("Em curso", summaries.count { it.job.status == JobStatus.IN_PROGRESS }.toString())
+                LabelValue("Por confirmar", summaries.count { it.job.status == JobStatus.TO_CONFIRM }.toString())
+                LabelValue("Em espera", summaries.count { it.job.status == JobStatus.ON_HOLD }.toString())
+                LabelValue(
+                    "Concluídas por cobrar",
+                    summaries.count { it.job.status == JobStatus.COMPLETED && it.balance?.balance?.isPositive == true }.toString(),
+                )
             }
         }
     }
 }
 
 @Composable
-private fun QuickActions(onNotReady: (String) -> Unit) {
+private fun QuickActions(onRecordTime: () -> Unit, onRecordPayment: () -> Unit, onNotReady: (String) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Button(onClick = { onNotReady("Registar horas") }, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
+        Button(onClick = onRecordTime, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
             Icon(Icons.Filled.Schedule, contentDescription = null)
             Text("  Registar horas")
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FilledTonalButton(onClick = { onNotReady("Adicionar gasto") }, modifier = Modifier.weight(1f).heightIn(min = 56.dp)) {
                 Icon(Icons.Filled.ShoppingCart, contentDescription = null)
-                Text("  Gasto")
+                Text("  Gasto", softWrap = false)
             }
-            FilledTonalButton(onClick = { onNotReady("Registar pagamento") }, modifier = Modifier.weight(1f).heightIn(min = 56.dp)) {
+            FilledTonalButton(onClick = onRecordPayment, modifier = Modifier.weight(1f).heightIn(min = 56.dp)) {
                 Icon(Icons.Filled.Euro, contentDescription = null)
-                Text("  Pagamento")
+                Text("  Pagamento", softWrap = false)
             }
         }
     }

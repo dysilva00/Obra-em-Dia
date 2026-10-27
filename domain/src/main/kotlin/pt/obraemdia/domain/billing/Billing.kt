@@ -3,7 +3,7 @@ package pt.obraemdia.domain.billing
 import pt.obraemdia.domain.money.HourlyRate
 import pt.obraemdia.domain.money.Money
 import pt.obraemdia.domain.money.sum
-import pt.obraemdia.domain.money.sumOf
+import pt.obraemdia.domain.money.sumMoney
 import java.math.BigDecimal
 import java.math.RoundingMode
 
@@ -52,7 +52,7 @@ object SaleCalculator {
         }
         val base = when (input.mode) {
             BillingMode.FIXED_PRICE -> input.approvedFixedPrice
-            BillingMode.HOURLY -> input.timeEntries.sumOf { it.saleAmount }
+            BillingMode.HOURLY -> input.timeEntries.sumMoney { it.saleAmount }
         }
         return base + input.extrasNotIncluded.sum() + materials
     }
@@ -74,6 +74,6 @@ data class JobResult(val saleNet: Money, val costsNetOfRecoverableVat: Money, va
 
     companion object {
         fun of(saleNet: Money, costs: Money, timeEntries: List<TimeEntryFacts>) =
-            JobResult(saleNet, costs, timeEntries.sumOf { it.internalCost })
+            JobResult(saleNet, costs, timeEntries.sumMoney { it.internalCost })
     }
 }

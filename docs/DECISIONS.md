@@ -33,3 +33,15 @@ Registo das escolhas reversíveis tomadas durante o desenvolvimento. A especific
 - PK em UUID gerado no aparelho, `createdAt`/`updatedAt` em UTC, eliminação lógica (`deletedAt`) nas entidades de negócio.
 - Movimentos financeiros só de acréscimo, com correções por estorno.
 - A UI acede aos dados apenas através de interfaces de repositório.
+
+## Persistência e arquitetura da app
+
+- **Room 2.8 + SQLite incluído na app** (`androidx.sqlite:sqlite-bundled`), igual em todos os aparelhos. Permite `VACUUM INTO` para o snapshot do backup. Esquema exportado em `app/schemas/` e versionado. Sem `fallbackToDestructiveMigration`.
+- **Injeção de dependências manual** (`AppContainer` em `ObraEmDiaApp.kt`) em vez de Hilt: a app é pequena e assim evita-se geração de código.
+- **Idempotência:** cada formulário gera um `operationId` ao abrir. Há índices únicos em `cash_movements(operationId)` e `time_entries(operationId, workerId)` com `INSERT OR IGNORE`, por isso um duplo toque ou a repetição após um erro não duplicam registos.
+- **Transações:** operações relacionadas usam `useWriterConnection { immediateTransaction { … } }` e são sempre totais ou nulas.
+- **Totais derivados:** os saldos, o estado de pagamento e o resultado nunca são guardados. São calculados pelas regras do `:domain` a partir dos registos (`data/repo/Summaries.kt`).
+- **Valor desconhecido ≠ zero:** uma obra de preço fixo sem preço, ou sem taxa de IVA definida, fica "Por definir" e fica fora dos totais "por receber", com um aviso.
+- **IVA:** a taxa é escolhida por obra, com "Por definir" como valor padrão. Nunca se assume 23 %.
+- **Dados de demonstração:** gravados na base com `isDemo = 1` e removíveis em bloco, numa transação. Se houver registos reais ligados a uma obra de demonstração, a remoção falha sem apagar nada. As duas pessoas e as suas taxas são **provisórias** (2 500/1 500 e 2 200/1 500 cêntimos por hora) até serem confirmadas.
+- O backup automático do Android está desligado (`allowBackup=false`); o backup completo é feito pela própria app.

@@ -3,6 +3,7 @@
 
     <!-- allowBackup=false: os dados não saem do aparelho por defeito; o backup é exportado pela própria app. -->
     <application
+        android:name=".ObraEmDiaApp"
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"

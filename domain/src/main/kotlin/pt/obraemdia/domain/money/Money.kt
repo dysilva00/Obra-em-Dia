@@ -52,5 +52,5 @@ value class Money(val cents: Long) : Comparable<Money> {
 
 fun Iterable<Money>.sum(): Money = fold(Money.ZERO, Money::plus)
 
-inline fun <T> Iterable<T>.sumOf(selector: (T) -> Money): Money =
+inline fun <T> Iterable<T>.sumMoney(selector: (T) -> Money): Money =
     fold(Money.ZERO) { acc, item -> acc + selector(item) }

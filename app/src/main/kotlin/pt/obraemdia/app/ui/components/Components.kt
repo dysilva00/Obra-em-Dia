@@ -1,8 +1,31 @@
 package pt.obraemdia.app.ui.components
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import pt.obraemdia.app.ui.longLabel
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneOffset
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -31,19 +54,95 @@ import pt.obraemdia.domain.job.JobStatus
 import pt.obraemdia.domain.job.Priority
 import pt.obraemdia.domain.job.label
 
-/** Faixa permanente enquanto a app mostra dados fictícios. */
+/** Faixa permanente enquanto existirem dados fictícios na base. */
 @Composable
-fun DemoBanner(modifier: Modifier = Modifier) {
+fun DemoBanner(onRemove: () -> Unit, modifier: Modifier = Modifier) {
+    var confirm by remember { mutableStateOf(false) }
     Surface(color = MaterialTheme.colorScheme.tertiaryContainer, modifier = modifier.fillMaxWidth()) {
-        Row(Modifier.padding(horizontal = 16.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.padding(start = 16.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Filled.Science, contentDescription = null, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(8.dp))
             Text(
-                "DADOS DE DEMONSTRAÇÃO — protótipo, nada é gravado",
+                "Inclui DADOS DE DEMONSTRAÇÃO fictícios",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onTertiaryContainer,
+                modifier = Modifier.weight(1f),
+            )
+            TextButton(onClick = { confirm = true }, modifier = Modifier.heightIn(min = 48.dp)) { Text("Remover") }
+        }
+    }
+    if (confirm) {
+        AlertDialog(
+            onDismissRequest = { confirm = false },
+            title = { Text("Remover dados de demonstração?") },
+            text = { Text("São apagadas as obras, horas, pagamentos e marcações fictícias. As pessoas e os registos que criou ficam.") },
+            confirmButton = { TextButton(onClick = { confirm = false; onRemove() }) { Text("Remover") } },
+            dismissButton = { TextButton(onClick = { confirm = false }) { Text("Cancelar") } },
+        )
+    }
+}
+
+/** Seletor simples em lista; mostra [placeholder] quando nada está escolhido. */
+@Composable
+fun <T> Picker(
+    label: String,
+    options: List<T>,
+    selected: T?,
+    optionLabel: (T) -> String,
+    onSelect: (T) -> Unit,
+    placeholder: String = "Escolher…",
+) {
+    var open by remember { mutableStateOf(false) }
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(label, style = MaterialTheme.typography.labelLarge)
+        Box {
+            OutlinedButton(onClick = { open = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
+                Text(selected?.let(optionLabel) ?: placeholder, modifier = Modifier.weight(1f))
+                Icon(Icons.Filled.ArrowDropDown, contentDescription = null)
+            }
+            DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+                options.forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(optionLabel(option)) },
+                        onClick = { onSelect(option); open = false },
+                        modifier = Modifier.heightIn(min = 48.dp),
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** Escolha de data com atalhos Ontem/Hoje e calendário. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DateField(label: String, date: LocalDate, today: LocalDate, onChange: (LocalDate) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(label, style = MaterialTheme.typography.labelLarge)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(selected = date == today.minusDays(1), onClick = { onChange(today.minusDays(1)) }, label = { Text("Ontem") })
+            FilterChip(selected = date == today, onClick = { onChange(today) }, label = { Text("Hoje") })
+            AssistChip(
+                onClick = { open = true },
+                label = { Text(date.longLabel()) },
+                leadingIcon = { Icon(Icons.Filled.CalendarMonth, contentDescription = null, modifier = Modifier.size(18.dp)) },
             )
         }
+    }
+    if (open) {
+        // O DatePicker trabalha em milissegundos UTC à meia-noite.
+        val state = rememberDatePickerState(initialSelectedDateMillis = date.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli())
+        DatePickerDialog(
+            onDismissRequest = { open = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    state.selectedDateMillis?.let { onChange(Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate()) }
+                    open = false
+                }) { Text("OK") }
+            },
+            dismissButton = { TextButton(onClick = { open = false }) { Text("Cancelar") } },
+        ) { DatePicker(state) }
     }
 }
 

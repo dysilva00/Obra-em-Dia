@@ -77,3 +77,21 @@ class MoneyTest {
         assertEquals(Money(100), parts.sum())
     }
 }
+
+class VatTest {
+
+    @Test
+    fun `iva arredonda ao centimo`() {
+        assertEquals(Money(23000), Vat.amount(Money.euros(1000), 2300))
+        // 10,05 € × 6 % = 0,603 → 0,60
+        assertEquals(Money(60), Vat.amount(Money(1005), 600))
+        assertEquals(Money(123), Vat.gross(Money(100), 2300))
+        assertEquals(Money.euros(3000), Vat.gross(Money.euros(3000), 0))
+    }
+
+    @Test
+    fun `rotulo da taxa`() {
+        assertEquals("23 %", Vat.label(2300))
+        assertEquals("6,5 %", Vat.label(650))
+    }
+}
