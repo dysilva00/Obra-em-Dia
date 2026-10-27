@@ -47,7 +47,7 @@ Legenda: ✅ concluído e verificado · 🟡 parcial · ⬜ pendente
 - ✅ Cronómetro (um por pessoa, também para "Os dois"): começa em Registar horas, fica em destaque no Início e "Parar e registar" abre o formulário preenchido. Sobrevive a fechar a app.
 - ✅ Cliente a partir dos contactos (Nova obra e Editar obra): copia só o nome e o telefone, sem pedir permissão. No emulador com Android 17 abre o novo seletor privado de contactos.
 - ✅ Aviso no ecrã da cópia de segurança de que desinstalar ou limpar os dados apaga tudo.
-- ⬜ Prova no aparelho real: seletor de contactos (Android 15)
+- ✅ Prova no aparelho real (Nothing Phone (1), Android 15): seletor de contactos e cronómetro (continua a contar com a app fechada).
 - ✅ Cópia de segurança (Definições → Cópia de segurança): exporta um .zip (base + fotos/anexos + manifesto com SHA-256) para onde se escolher; restauro validado antes de mexer nos dados e aplicado no arranque, com recuperação se for interrompido. Alerta no Início (e no resumo diário) quando não há cópia ou tem mais de 30 dias, só com dados reais. Ciclo exportar → apagar → restaurar verificado no emulador.
 - ⬜ Prova no aparelho real: restaurar a cópia num segundo telemóvel
 
