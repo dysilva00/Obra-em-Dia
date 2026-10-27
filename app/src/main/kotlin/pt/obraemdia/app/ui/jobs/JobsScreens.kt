@@ -153,6 +153,8 @@ fun JobDetailScreen(
     onChangeAgreement: suspend (AgreementChange) -> SaveResult,
     onAddCharge: suspend (NewCharge) -> SaveResult,
     onCancelCharge: suspend (id: String, reason: String) -> SaveResult,
+    onAddInstallment: suspend (LocalDate, Money, String?) -> SaveResult,
+    onRemoveInstallment: suspend (String) -> SaveResult,
     onUpdateTime: suspend (id: String, date: LocalDate, minutes: Int, kind: TimeEntryKind, billable: Boolean, note: String?) -> SaveResult,
     onDeleteTime: suspend (id: String, reason: String) -> SaveResult,
     onMessage: (String) -> Unit,
@@ -273,6 +275,7 @@ fun JobDetailScreen(
                 onCancelCharge = { cancellingCharge = it },
             )
         }
+        item { InstallmentsSection(snapshot, s, closed, today, onAddInstallment, onRemoveInstallment, onMessage) }
         item {
             SectionCard("Horas", caption = "Real · ${s.entries.size} registo(s)") {
                 LabelValue("Total horas-pessoa", formatMinutes(s.minutes))

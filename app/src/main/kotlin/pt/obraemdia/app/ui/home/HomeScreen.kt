@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
@@ -28,7 +29,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import pt.obraemdia.app.data.repo.Alert
+import pt.obraemdia.app.data.repo.AlertKind
 import pt.obraemdia.app.data.repo.Snapshot
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Warning
 import pt.obraemdia.app.ui.AgendaState
 import pt.obraemdia.app.ui.components.LabelValue
 import pt.obraemdia.app.ui.components.SectionCard
@@ -55,6 +60,8 @@ fun HomeScreen(
     onRecordTime: () -> Unit,
     onRecordPayment: () -> Unit,
     onAddExpense: () -> Unit,
+    alerts: List<Alert>,
+    onForecast: () -> Unit,
 ) {
     var month by rememberSaveable { mutableStateOf(YearMonth.from(today)) }
     val monthMovements = snapshot.movementsIn(month)
@@ -86,6 +93,35 @@ fun HomeScreen(
 
         item { QuickActions(onRecordTime, onRecordPayment, onAddExpense) }
 
+        if (alerts.isNotEmpty()) {
+            item {
+                SectionCard("Alertas", caption = "${alerts.size} a ver") {
+                    alerts.take(6).forEach { a ->
+                        TextButton(
+                            onClick = { a.jobId?.let(onOpenJob) },
+                            enabled = a.jobId != null,
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                                Icon(
+                                    if (a.kind == AlertKind.MISSING_DATA) Icons.Filled.Info else Icons.Filled.Warning,
+                                    contentDescription = null,
+                                    tint = if (a.kind == AlertKind.MISSING_DATA) MaterialTheme.colorScheme.onSurfaceVariant else AppColors.Amber,
+                                )
+                                Text(
+                                    a.text,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.weight(1f).padding(start = 8.dp),
+                                )
+                            }
+                        }
+                    }
+                    if (alerts.size > 6) Text("+ ${alerts.size - 6} alerta(s)", style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        }
+
         item {
             SectionCard("Saldo acumulado", caption = "Real · em ${today.shortLabel()} · movimentos registados na app, não é o saldo bancário") {
                 Text(snapshot.accumulatedBalance(today).format(), style = MoneyLarge)
@@ -112,6 +148,7 @@ fun HomeScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+                TextButton(onClick = onForecast, modifier = Modifier.heightIn(min = 48.dp)) { Text("Ver projeções a 30/60/90 dias") }
             }
         }
 

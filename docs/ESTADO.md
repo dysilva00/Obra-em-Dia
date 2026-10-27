@@ -4,8 +4,8 @@ Legenda: ✅ concluído e verificado · 🟡 parcial · ⬜ pendente
 
 ## Verificação
 
-- `gradlew :domain:test`: 38 testes de regras (dinheiro, IVA, repartição, custos e IVA recuperável, tipos de documento, NIF, agenda/conflitos, sugestão de dias livres, cobrança, saldos, estados, encerramento).
-- `gradlew connectedDebugAndroidTest`: 43 testes no emulador (idempotência, taxas históricas, transações, chaves estrangeiras, remoção de demonstração, agendamento com conflitos, estados, cancelamento, gastos/repartições/duplicados/crédito/notas de crédito, estornos, correção e anulação de horas, anulação de compras, encerramento/bloqueio/reabertura/revisões, acordo/extras/materiais/edição, definições/indisponibilidades, migrações v1→v2→v3→v4→v5).
+- `gradlew :domain:test`: 46 testes de regras (previsão de caixa, dinheiro, IVA, repartição, custos e IVA recuperável, tipos de documento, NIF, agenda/conflitos, sugestão de dias livres, cobrança, saldos, estados, encerramento).
+- `gradlew connectedDebugAndroidTest`: 47 testes no emulador (idempotência, taxas históricas, transações, chaves estrangeiras, remoção de demonstração, agendamento com conflitos, estados, cancelamento, gastos/repartições/duplicados/crédito/notas de crédito, estornos, correção e anulação de horas, anulação de compras, encerramento/bloqueio/reabertura/revisões, acordo/extras/materiais/edição, definições/indisponibilidades, previsão e alertas, migrações v1→…→v6).
   **Atenção:** este comando desinstala a app no fim e apaga os dados do emulador.
 - Verificado manualmente no emulador (API 37): navegação, letra a 130 %, registo de pagamento com duplo toque (gravado uma única vez) e persistência depois de fechar a app à força.
 
@@ -19,7 +19,7 @@ Legenda: ✅ concluído e verificado · 🟡 parcial · ⬜ pendente
 - ✅ Agendar obra: vários dias (descontínuos), dia completo/manhã/tarde/horas, pré-reserva, conflitos detetados enquanto se preenche e de novo na gravação, com as 3 saídas (outro dia sugerido, outra pessoa livre, manter com motivo).
 - ✅ Vista de calendário mensal na Agenda (com filtro por pessoa e "Agendar neste dia") e na ficha da obra (dias marcados dessa obra).
 - ✅ Mudar estado da obra com as regras do domínio; cancelar liberta as reservas futuras.
-- ✅ Esquema v5 com migrações automáticas testadas (v1→v2→v3→v4→v5).
+- ✅ Esquema v6 com migrações automáticas testadas (v1→…→v6).
 - ✅ Adicionar gasto: tipos de documento (guia/pró-forma/recibo recusados com explicação), fornecedor/NIF validado/nº, categoria, IVA incluído e se é recuperável (por definir por omissão), uma obra / despesa geral / repartição com valor por classificar visível, pago agora ou a crédito com vencimento, notas de crédito.
 - ✅ Duplicados de compras bloqueados (mesma operação, NIF+tipo+número, ATCUD).
 - ✅ Contas: por pagar a fornecedores (com vencidas) e ação Pagar (parcial ou total), por classificar.
@@ -29,13 +29,16 @@ Legenda: ✅ concluído e verificado · 🟡 parcial · ⬜ pendente
 - ✅ Editar obra (título, notas, cliente existente ou novo com telefone, morada, prioridade, política de materiais); Ligar e Ver no mapa.
 - ✅ Acordo e extras: alterar preço/IVA/modalidade com motivo e histórico; extras aprovados e materiais cobrados ao cliente (com evidência, "já incluído"), anuláveis com motivo.
 - ✅ Definições (roda dentada no topo): nome e taxas habituais de cada pessoa, saldo inicial, margem de deslocação, horário de trabalho (usado nas marcações), indisponibilidades com aviso de marcações em conflito.
+- ✅ Plano de pagamentos (prestações) por obra, com estado de cada prestação.
+- ✅ Projeções 30/60/90 dias (Contas → Projeções e Início): cenário confirmado vs. com propostas, por mês, ponto mais baixo, vencidos, previsão incompleta, adiamento simulado e pressupostos.
+- ✅ Alertas no Início: prestações e faturas vencidas, sobreposições, obras em espera a rever, dados em falta.
 - ⬜ Prova no aparelho real: leitura de QR AT
 - ⬜ Prova no aparelho real: seletor de contactos
 - ⬜ Exportação via SAF e ciclo de backup/restauro com anexo
 
 ## Ainda simulado ("ainda não disponível nesta versão")
 
-Leitura de QR, Projeções e Exportar.
+Leitura de QR e Exportar.
 
 ## Limitações conhecidas
 

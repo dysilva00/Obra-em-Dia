@@ -72,6 +72,7 @@ fun AccountsScreen(
     onAddExpense: () -> Unit,
     onPaySupplier: suspend (operationId: String, documentId: String, amount: Money, date: LocalDate, method: PaymentMethod) -> SaveResult,
     onReverse: suspend (movementId: String, reason: String) -> SaveResult,
+    onForecast: () -> Unit,
     onVoidPurchase: suspend (documentId: String, reason: String) -> SaveResult,
     onMessage: (String) -> Unit,
     onNotReady: (String) -> Unit,
@@ -144,7 +145,7 @@ fun AccountsScreen(
         }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = { onNotReady("Projeções 30/60/90 dias") }, modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
+                OutlinedButton(onClick = onForecast, modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
                     Text("Projeções", softWrap = false)
                 }
                 OutlinedButton(onClick = { onNotReady("Exportar CSV") }, modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {

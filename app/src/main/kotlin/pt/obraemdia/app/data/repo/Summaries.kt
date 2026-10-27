@@ -4,6 +4,7 @@ import pt.obraemdia.app.data.db.CashKind
 import pt.obraemdia.app.data.db.CashMovementEntity
 import pt.obraemdia.app.data.db.CostAllocationEntity
 import pt.obraemdia.app.data.db.ChargeKind
+import pt.obraemdia.app.data.db.InstallmentEntity
 import pt.obraemdia.app.data.db.JobChargeEntity
 import pt.obraemdia.app.data.db.JobClosureEntity
 import pt.obraemdia.app.data.db.PriceRevisionEntity
@@ -43,7 +44,10 @@ data class Snapshot(
     val closures: List<JobClosureEntity> = emptyList(),
     val charges: List<JobChargeEntity> = emptyList(),
     val priceRevisions: List<PriceRevisionEntity> = emptyList(),
+    val installments: List<InstallmentEntity> = emptyList(),
 ) {
+    fun installmentsOf(jobId: String) = installments.filter { it.jobId == jobId }.sortedBy { it.dueDate }
+
     /** Ids de movimentos que já foram estornados. */
     val reversedIds: Set<String> by lazy { movements.mapNotNull { it.reversalOfId }.toSet() }
 

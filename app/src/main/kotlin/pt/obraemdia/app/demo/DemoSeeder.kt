@@ -8,6 +8,7 @@ import pt.obraemdia.app.data.db.CashMovementEntity
 import pt.obraemdia.app.data.db.ClientEntity
 import pt.obraemdia.app.data.db.CostAllocationEntity
 import pt.obraemdia.app.data.db.ExpenseCategory
+import pt.obraemdia.app.data.db.InstallmentEntity
 import pt.obraemdia.app.data.db.PurchaseDocumentEntity
 import pt.obraemdia.app.data.db.JobEntity
 import pt.obraemdia.app.data.db.PaymentMethod
@@ -69,6 +70,7 @@ interface DemoDao {
 
     @Query("DELETE FROM job_charges WHERE isDemo = 1 OR jobId IN (SELECT id FROM jobs WHERE isDemo = 1)") suspend fun deleteCharges()
     @Query("DELETE FROM price_revisions WHERE jobId IN (SELECT id FROM jobs WHERE isDemo = 1)") suspend fun deleteRevisions()
+    @Query("DELETE FROM installments WHERE isDemo = 1 OR jobId IN (SELECT id FROM jobs WHERE isDemo = 1)") suspend fun deleteInstallments()
     @Query("DELETE FROM job_closures WHERE jobId IN (SELECT id FROM jobs WHERE isDemo = 1)") suspend fun deleteClosures()
     @Query("DELETE FROM jobs WHERE isDemo = 1") suspend fun deleteJobs()
 
@@ -112,7 +114,7 @@ class DemoSeeder(private val db: AppDatabase, private val repo: ObraRepository) 
         val d = db.demoDao()
         // Ordem inversa das dependências (chaves estrangeiras RESTRICT).
         d.deleteSchedule(); d.deleteTimeOff(); d.deleteTimeEntries(); d.deleteCash(); d.deletePurchases(); d.deleteDemoAllocations()
-        d.deleteCharges(); d.deleteRevisions(); d.deleteClosures(); d.deleteJobs()
+        d.deleteCharges(); d.deleteRevisions(); d.deleteInstallments(); d.deleteClosures(); d.deleteJobs()
         d.deleteSites(); d.keepUsedSites(); d.deleteClients(); d.keepUsedClients()
         db.settingsDao().put(SettingEntity(Settings.OPENING_BALANCE_CENTS, "0"))
     }
@@ -229,5 +231,13 @@ class DemoSeeder(private val db: AppDatabase, private val repo: ObraRepository) 
         purchase(today.minusDays(6), "Combustível (exemplo)", ExpenseCategory.TRAVEL, 6500, listOf(null to 6500L), paid = true)
         purchase(today.minusDays(3), "Drogaria (exemplo)", ExpenseCategory.MATERIAL, 12300, listOf(bath to 8000L, wall to 4300L), paid = true)
         purchase(today.minusDays(9), "Armazém de cerâmica (exemplo)", ExpenseCategory.MATERIAL, 31000, listOf(kitchen to 31000L), paid = false, due = today.plusDays(20))
+
+        // Plano de pagamentos: o adiantamento já recebido cobre a 1.ª prestação; as restantes entram na previsão.
+        suspend fun installment(jobId: String, due: LocalDate, euros: Long) =
+            db.agreementDao().insertInstallment(InstallmentEntity(newId(), jobId, due, euros * 100, createdAt = now, isDemo = true))
+        installment(bath, today.minusDays(12), 1000)
+        installment(bath, today.plusDays(10), 1000)
+        installment(bath, today.plusDays(35), 1000)
+        installment(roof, today.minusDays(3), 650) // vencida: aparece nos alertas
     }
 }

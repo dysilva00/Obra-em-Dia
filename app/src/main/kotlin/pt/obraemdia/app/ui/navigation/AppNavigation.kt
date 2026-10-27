@@ -45,6 +45,7 @@ import kotlinx.serialization.Serializable
 import pt.obraemdia.app.container
 import pt.obraemdia.app.ui.AppViewModel
 import pt.obraemdia.app.ui.accounts.AccountsScreen
+import pt.obraemdia.app.ui.accounts.ForecastScreen
 import pt.obraemdia.app.ui.agenda.AgendaScreen
 import pt.obraemdia.app.ui.components.DemoBanner
 import pt.obraemdia.app.ui.forms.BookingScreen
@@ -73,6 +74,7 @@ import kotlin.reflect.KClass
 @Serializable data class ClosureRoute(val jobId: String)
 @Serializable data class EditJobRoute(val jobId: String)
 @Serializable data object SettingsRoute
+@Serializable data object ForecastRoute
 
 private data class Tab(val route: Any, val routeClass: KClass<*>, val label: String, val icon: ImageVector)
 
@@ -93,6 +95,7 @@ private fun NavDestination?.title(): String = when {
     hasRoute(ClosureRoute::class) -> "Encerramento"
     hasRoute(EditJobRoute::class) -> "Editar obra"
     hasRoute(SettingsRoute::class) -> "Definições"
+    hasRoute(ForecastRoute::class) -> "Projeções"
     hasRoute(JobDetailRoute::class) -> "Obra"
     else -> tabs.firstOrNull { hasRoute(it.routeClass) }?.label.orEmpty()
 }
@@ -104,6 +107,7 @@ fun AppNavigation() {
     val vm: AppViewModel = viewModel { AppViewModel(context.container) }
     val snapshot by vm.snapshot.collectAsStateWithLifecycle()
     val agenda by vm.agenda.collectAsStateWithLifecycle()
+    val alerts by vm.alerts.collectAsStateWithLifecycle()
 
     val nav = rememberNavController()
     val backStack by nav.currentBackStackEntryAsState()
@@ -182,6 +186,8 @@ fun AppNavigation() {
                     onRecordTime = { nav.navigate(RecordTimeRoute()) },
                     onRecordPayment = { nav.navigate(RecordPaymentRoute()) },
                     onAddExpense = { nav.navigate(ExpenseRoute()) },
+                    alerts = alerts,
+                    onForecast = { nav.navigate(ForecastRoute) },
                 )
             }
             composable<AgendaRoute> {
@@ -194,6 +200,7 @@ fun AppNavigation() {
                     onAddExpense = { nav.navigate(ExpenseRoute()) },
                     onPaySupplier = vm::paySupplier,
                     onReverse = vm::reverseMovement,
+                    onForecast = { nav.navigate(ForecastRoute) },
                     onVoidPurchase = vm::voidPurchase,
                     onMessage = message,
                     onNotReady = notReady,
@@ -213,6 +220,8 @@ fun AppNavigation() {
                     onChangeAgreement = { c -> vm.changeAgreement(jobId, c) },
                     onAddCharge = vm::addCharge,
                     onCancelCharge = vm::cancelCharge,
+                    onAddInstallment = { d, a, n -> vm.addInstallment(jobId, d, a, n) },
+                    onRemoveInstallment = vm::removeInstallment,
                     onUpdateTime = vm::updateTimeEntry,
                     onDeleteTime = vm::deleteTimeEntry,
                     onMessage = message,
@@ -235,6 +244,7 @@ fun AppNavigation() {
                 val clients by vm.clients.collectAsStateWithLifecycle()
                 snap.summary(id)?.let { EditJobScreen(vm, it, clients, snap.isClosed(id), finished) }
             }
+            composable<ForecastRoute> { ForecastScreen(vm, snap) }
             composable<SettingsRoute> {
                 val timeOff by vm.timeOff.collectAsStateWithLifecycle()
                 SettingsScreen(vm, snap, timeOff, message)

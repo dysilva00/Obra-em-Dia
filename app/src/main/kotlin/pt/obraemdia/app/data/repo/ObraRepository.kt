@@ -158,9 +158,9 @@ class ObraRepository(private val db: AppDatabase, private val clock: () -> Long 
         db.purchaseDao().observeAll(),
         db.purchaseDao().observeAllocations(),
         db.closureDao().observeAll(),
-        combine(db.agreementDao().observeCharges(), db.agreementDao().observeRevisions()) { c, r -> c to r },
-    ) { base, purchases, allocations, closures, (charges, revisions) ->
-        base.copy(purchases = purchases, allocations = allocations, closures = closures, charges = charges, priceRevisions = revisions)
+        combine(db.agreementDao().observeCharges(), db.agreementDao().observeRevisions(), db.agreementDao().observeInstallments()) { c, r, i -> Triple(c, r, i) },
+    ) { base, purchases, allocations, closures, (charges, revisions, installments) ->
+        base.copy(purchases = purchases, allocations = allocations, closures = closures, charges = charges, priceRevisions = revisions, installments = installments)
     }
 
     val clients: Flow<List<ClientEntity>> = db.clientDao().observeAll()

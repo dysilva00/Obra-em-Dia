@@ -412,3 +412,20 @@ data class JobChargeEntity(
     val deleteReason: String? = null,
     val isDemo: Boolean = false,
 )
+
+/** Prestação acordada com o cliente: valor COM IVA e data prevista de recebimento. */
+@Entity(
+    tableName = "installments",
+    foreignKeys = [ForeignKey(JobEntity::class, ["id"], ["jobId"], onDelete = ForeignKey.RESTRICT)],
+    indices = [Index("jobId"), Index("dueDate")],
+)
+data class InstallmentEntity(
+    @PrimaryKey val id: String,
+    val jobId: String,
+    val dueDate: LocalDate,
+    val amountGrossCents: Long,
+    val note: String? = null,
+    val createdAt: Long,
+    val deletedAt: Long? = null,
+    val isDemo: Boolean = false,
+)

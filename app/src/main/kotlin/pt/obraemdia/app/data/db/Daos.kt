@@ -262,6 +262,15 @@ interface JobFactsDao {
 
 @Dao
 interface AgreementDao {
+    @Insert suspend fun insertInstallment(i: InstallmentEntity)
+    @Update suspend fun updateInstallment(i: InstallmentEntity)
+
+    @Query("SELECT * FROM installments WHERE id = :id")
+    suspend fun getInstallment(id: String): InstallmentEntity?
+
+    @Query("SELECT * FROM installments WHERE deletedAt IS NULL ORDER BY dueDate")
+    fun observeInstallments(): Flow<List<InstallmentEntity>>
+
     @Insert suspend fun insertRevision(revision: PriceRevisionEntity)
 
     @Query("SELECT COALESCE(MAX(revision), 0) FROM price_revisions WHERE jobId = :jobId")

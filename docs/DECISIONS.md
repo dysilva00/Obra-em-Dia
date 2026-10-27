@@ -63,3 +63,15 @@ Registo das escolhas reversíveis tomadas durante o desenvolvimento. A especific
 - **Obra encerrada:** o acordo, os extras, os materiais e a política de materiais ficam bloqueados. O título, as notas, o cliente, a morada e a prioridade podem ser corrigidos sem impacto financeiro.
 - **Telefone do cliente:** pertence ao cliente e é partilhado pelas suas obras. "Ligar" abre o marcador (`ACTION_DIAL`) e não liga sozinho; "Ver no mapa" abre a app de mapas com `geo:`.
 - **Remover demonstração:** sai tudo o que estiver ligado a obras fictícias. Uma compra repartida também por uma obra real fica, e só a parcela fictícia sai, passando a "por classificar". Clientes e locais fictícios usados por obras reais deixam de ser marcados como demonstração e ficam.
+
+## Projeções e alertas
+
+- **Previsão:** caixa prevista = saldo atual (saldo inicial + movimentos) + recebimentos em aberto − pagamentos em aberto, a 30, 60 e 90 dias. É calculada em `domain/cash/Forecast` e nunca é guardada.
+- **Recebimentos:** vêm das prestações. O que já foi recebido cobre primeiro as prestações mais antigas, por isso os adiantamentos não reaparecem. O saldo não coberto por prestações usa como hipótese o último dia marcado da obra (só se for hoje ou depois); caso contrário fica "sem data". Nunca se prevê mais do que o saldo em dívida.
+- **Pagamentos:** vêm das faturas de fornecedores por pagar, na data de vencimento. Sem vencimento, são considerados imediatos (pressuposto mostrado no ecrã).
+- **Vencidos:** contam no dia de hoje e ficam marcados como VENCIDO.
+- **Cenários:** confirmado ou com propostas (obras "Por confirmar"), sem probabilidades.
+- **Incompleta:** a previsão é marcada como incompleta quando há obras sem preço ou IVA, ou valores sem data. Um valor desconhecido nunca é tratado como zero.
+- **Adiamento simulado:** existe só no ecrã e não altera dados.
+- **Não incluído:** custos futuros ainda não comprados, porque não há estimativas registadas. Está indicado nos pressupostos.
+- **Alertas no Início:** prestações vencidas, faturas de fornecedor vencidas, sobreposições futuras na agenda, obras em espera com data de revisão atingida, obras ativas sem preço ou IVA e compras por classificar. Ainda não há notificações do sistema.

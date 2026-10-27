@@ -252,6 +252,37 @@ class AppViewModel(private val container: AppContainer) : ViewModel() {
         "Indisponibilidade removida"
     }
 
+    private fun agendaFacts(state: AgendaState?) =
+        pt.obraemdia.app.data.repo.AgendaFacts(state?.items.orEmpty().map { it.booking to it.conflicts })
+
+    /** Alertas úteis (sem transformar cada registo numa notificação). */
+    val alerts: StateFlow<List<pt.obraemdia.app.data.repo.Alert>> =
+        combine(repo.snapshot, agenda) { snap, ag -> pt.obraemdia.app.data.repo.Insights.alerts(snap, agendaFacts(ag), today) }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    fun forecast(
+        snapshot: Snapshot,
+        horizonDays: Long,
+        includeProposals: Boolean,
+        postponed: Map<String, LocalDate>,
+    ): Pair<pt.obraemdia.domain.cash.ForecastResult, List<String>> {
+        val inputs = pt.obraemdia.app.data.repo.Insights.forecastInputs(snapshot, agendaFacts(agenda.value), today)
+        val result = pt.obraemdia.domain.cash.Forecast.project(
+            today, horizonDays, snapshot.accumulatedBalance(today), inputs.items, includeProposals, inputs.unknowns, postponed,
+        )
+        return result to inputs.assumptions
+    }
+
+    suspend fun addInstallment(jobId: String, due: LocalDate, amount: Money, note: String?): SaveResult = save {
+        container.agreement.addInstallment(jobId, due, amount, note)
+        "Prestação registada"
+    }
+
+    suspend fun removeInstallment(id: String): SaveResult = save {
+        container.agreement.removeInstallment(id)
+        "Prestação removida (fica no histórico)"
+    }
+
     suspend fun deleteDemoData(): SaveResult =
         runCatching { container.demoSeeder.deleteDemoData() }.fold(
             onSuccess = { SaveResult(true, "Dados de demonstração removidos") },

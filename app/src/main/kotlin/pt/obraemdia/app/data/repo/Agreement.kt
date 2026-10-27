@@ -4,6 +4,7 @@ import pt.obraemdia.app.data.db.AppDatabase
 import pt.obraemdia.app.data.db.AuditEventEntity
 import pt.obraemdia.app.data.db.ChargeKind
 import pt.obraemdia.app.data.db.ClientEntity
+import pt.obraemdia.app.data.db.InstallmentEntity
 import pt.obraemdia.app.data.db.JobChargeEntity
 import pt.obraemdia.app.data.db.PriceRevisionEntity
 import pt.obraemdia.app.data.db.WorkSiteEntity
@@ -153,6 +154,26 @@ class Agreement(private val db: AppDatabase, private val repo: ObraRepository, p
             repo.ensureOpen(charge.jobId)
             db.agreementDao().updateCharge(charge.copy(deletedAt = clock(), deleteReason = reason.trim()))
             audit(charge.jobId, "charge_cancel", "${charge.description} · $reason")
+        }
+    }
+
+    /** Prestação acordada (valor com IVA). Faz parte do acordo: exige obra aberta. */
+    suspend fun addInstallment(jobId: String, dueDate: LocalDate, amountGross: Money, note: String?) {
+        require(amountGross.isPositive) { "O valor tem de ser positivo" }
+        repo.transaction {
+            repo.ensureOpen(jobId)
+            val id = newId()
+            db.agreementDao().insertInstallment(InstallmentEntity(id, jobId, dueDate, amountGross.cents, note?.takeIf { it.isNotBlank() }, clock()))
+            audit(jobId, "installment", "$dueDate ${amountGross.format()}")
+        }
+    }
+
+    suspend fun removeInstallment(id: String) {
+        repo.transaction {
+            val i = requireNotNull(db.agreementDao().getInstallment(id)) { "Prestação não encontrada" }
+            repo.ensureOpen(i.jobId)
+            db.agreementDao().updateInstallment(i.copy(deletedAt = clock()))
+            audit(i.jobId, "installment_remove", "${i.dueDate} ${Money(i.amountGrossCents).format()}")
         }
     }
 

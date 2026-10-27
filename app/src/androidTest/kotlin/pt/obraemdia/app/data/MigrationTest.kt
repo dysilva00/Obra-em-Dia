@@ -58,6 +58,17 @@ class MigrationTest {
     }
 
     @Test
+    fun v5_para_v6_cria_prestacoes() {
+        helper.createDatabase(5).close()
+        helper.runMigrationsAndValidate(6).use { db ->
+            db.prepare("SELECT COUNT(*) FROM installments").use { st ->
+                assertTrue(st.step())
+                assertEquals(0L, st.getLong(0))
+            }
+        }
+    }
+
+    @Test
     fun v4_para_v5_cria_acordos_e_extras() {
         helper.createDatabase(4).close()
         helper.runMigrationsAndValidate(5).use { db ->
