@@ -75,3 +75,12 @@ Registo das escolhas reversíveis tomadas durante o desenvolvimento. A especific
 - **Adiamento simulado:** existe só no ecrã e não altera dados.
 - **Não incluído:** custos futuros ainda não comprados, porque não há estimativas registadas. Está indicado nos pressupostos.
 - **Alertas no Início:** prestações vencidas, faturas de fornecedor vencidas, sobreposições futuras na agenda, obras em espera com data de revisão atingida, obras ativas sem preço ou IVA e compras por classificar. Ainda não há notificações do sistema.
+
+## Exportação
+
+- **Só PDF, sem CSV:** decisão do utilizador a 27/10/2026. O "Relatório do mês" em PDF cobre o que o CSV ia dar (movimentos e horas).
+- **Documentos:** o balanço da obra é interno (com custos, custo interno e resultado). O resumo para o cliente mostra só esta obra, sem custos, taxas de custo interno nem resultado. Nas obras à hora mostra as horas faturáveis ao preço cobrado. O relatório do mês tem os movimentos, as horas por pessoa e obra e a posição em aberto.
+- **Rodapé:** todas as páginas dizem "Documento de gestão, sem valor fiscal. Não é fatura nem recibo."
+- **Geração:** usa o `PdfDocument` nativo do Android, sem bibliotecas nem serviços externos.
+- **Partilhar:** gera o PDF em `cache/exports/` (a única pasta exposta pelo FileProvider; os ficheiros com mais de 24 h são limpos) e abre o menu de partilha. O envio é sempre manual.
+- **Guardar:** usa o seletor de ficheiros do Android (`CreateDocument`). O relatório é reconstruído quando o seletor devolve o destino, por isso funciona mesmo que a atividade seja recriada.

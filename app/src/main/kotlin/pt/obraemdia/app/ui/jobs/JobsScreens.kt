@@ -16,6 +16,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -169,6 +170,7 @@ fun JobDetailScreen(
     val closed = snapshot.isClosed(jobId)
     var editing by remember { mutableStateOf<TimeEntryEntity?>(null) }
     var agreementDialog by remember { mutableStateOf(false) }
+    var exporting by remember { mutableStateOf(false) }
     var chargeDialog by remember { mutableStateOf<ChargeKind?>(null) }
     var cancellingCharge by remember { mutableStateOf<JobChargeEntity?>(null) }
     val jobBookings = agenda?.items.orEmpty().filter { it.booking.jobId == jobId }
@@ -330,8 +332,28 @@ fun JobDetailScreen(
                 Text(if (closed) "Ver encerramento" else "Rever encerramento")
             }
         }
+        item {
+            OutlinedButton(onClick = { exporting = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
+                Text("Exportar PDF")
+            }
+        }
     }
 
+    if (exporting) {
+        pt.obraemdia.app.export.ExportDialog(
+            title = "Exportar PDF",
+            options = listOf(
+                "Balanço da obra (interno)" to "Valores, horas, custos, recebimentos e resultado. Para uso vosso.",
+                "Resumo para o cliente" to "Valor acordado, extras, pagamentos e saldo. Sem custos nem taxas internas.",
+            ),
+            build = { i ->
+                if (i == 0) pt.obraemdia.app.export.Reports.jobBalance(snapshot, jobId, today)
+                else pt.obraemdia.app.export.Reports.clientSummary(snapshot, jobId, today)
+            },
+            onDismiss = { exporting = false },
+            onMessage = onMessage,
+        )
+    }
     if (agreementDialog) {
         AgreementDialog(s, today, onDismiss = { agreementDialog = false }, onConfirm = onChangeAgreement) { agreementDialog = false; onMessage(it) }
     }

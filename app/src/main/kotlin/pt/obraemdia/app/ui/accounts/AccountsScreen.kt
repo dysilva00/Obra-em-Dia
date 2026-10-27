@@ -79,6 +79,8 @@ fun AccountsScreen(
 ) {
     var reversing by remember { mutableStateOf<CashMovementEntity?>(null) }
     var voiding by remember { mutableStateOf<PurchaseStatus?>(null) }
+    var exporting by remember { mutableStateOf(false) }
+    var exportMonth by remember { mutableStateOf(YearMonth.from(today)) }
     val month = YearMonth.from(today)
     val monthMovements = snapshot.movementsIn(month)
     val received = snapshot.monthReceived(month)
@@ -148,8 +150,8 @@ fun AccountsScreen(
                 OutlinedButton(onClick = onForecast, modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
                     Text("Projeções", softWrap = false)
                 }
-                OutlinedButton(onClick = { onNotReady("Exportar CSV") }, modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
-                    Text("Exportar", softWrap = false)
+                OutlinedButton(onClick = { exporting = true }, modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
+                    Text("Relatório PDF", softWrap = false)
                 }
             }
         }
@@ -210,6 +212,21 @@ fun AccountsScreen(
         }
     }
 
+    if (exporting) {
+        pt.obraemdia.app.export.ExportDialog(
+            title = "Relatório do mês",
+            options = listOf(exportMonth.label() to "Recebimentos, pagamentos, movimentos e horas por pessoa e obra."),
+            build = { pt.obraemdia.app.export.Reports.monthly(snapshot, exportMonth, today) },
+            onDismiss = { exporting = false },
+            onMessage = onMessage,
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = { exportMonth = exportMonth.minusMonths(1) }) { Text("‹ Anterior") }
+                Text(exportMonth.label(), style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                TextButton(onClick = { exportMonth = exportMonth.plusMonths(1) }, enabled = exportMonth < YearMonth.from(today)) { Text("Seguinte ›") }
+            }
+        }
+    }
     reversing?.let { m ->
         ReasonDialog(
             title = "Estornar movimento",

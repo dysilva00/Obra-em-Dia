@@ -5,7 +5,7 @@ Legenda: ✅ concluído e verificado · 🟡 parcial · ⬜ pendente
 ## Verificação
 
 - `gradlew :domain:test`: 46 testes de regras (previsão de caixa, dinheiro, IVA, repartição, custos e IVA recuperável, tipos de documento, NIF, agenda/conflitos, sugestão de dias livres, cobrança, saldos, estados, encerramento).
-- `gradlew connectedDebugAndroidTest`: 47 testes no emulador (idempotência, taxas históricas, transações, chaves estrangeiras, remoção de demonstração, agendamento com conflitos, estados, cancelamento, gastos/repartições/duplicados/crédito/notas de crédito, estornos, correção e anulação de horas, anulação de compras, encerramento/bloqueio/reabertura/revisões, acordo/extras/materiais/edição, definições/indisponibilidades, previsão e alertas, migrações v1→…→v6).
+- `gradlew connectedDebugAndroidTest`: 51 testes no emulador (idempotência, taxas históricas, transações, chaves estrangeiras, remoção de demonstração, agendamento com conflitos, estados, cancelamento, gastos/repartições/duplicados/crédito/notas de crédito, estornos, correção e anulação de horas, anulação de compras, encerramento/bloqueio/reabertura/revisões, acordo/extras/materiais/edição, definições/indisponibilidades, previsão e alertas, PDFs válidos e resumo do cliente sem dados internos, migrações v1→…→v6).
   **Atenção:** este comando desinstala a app no fim e apaga os dados do emulador.
 - Verificado manualmente no emulador (API 37): navegação, letra a 130 %, registo de pagamento com duplo toque (gravado uma única vez) e persistência depois de fechar a app à força.
 
@@ -32,13 +32,14 @@ Legenda: ✅ concluído e verificado · 🟡 parcial · ⬜ pendente
 - ✅ Plano de pagamentos (prestações) por obra, com estado de cada prestação.
 - ✅ Projeções 30/60/90 dias (Contas → Projeções e Início): cenário confirmado vs. com propostas, por mês, ponto mais baixo, vencidos, previsão incompleta, adiamento simulado e pressupostos.
 - ✅ Alertas no Início: prestações e faturas vencidas, sobreposições, obras em espera a rever, dados em falta.
+- ✅ Exportação em PDF: balanço da obra (interno), resumo para o cliente (sem custos nem taxas internas) e relatório do mês; partilhar ou guardar no telemóvel. CSV dispensado pelo utilizador.
 - ⬜ Prova no aparelho real: leitura de QR AT
 - ⬜ Prova no aparelho real: seletor de contactos
 - ⬜ Exportação via SAF e ciclo de backup/restauro com anexo
 
 ## Ainda simulado ("ainda não disponível nesta versão")
 
-Leitura de QR e Exportar.
+Leitura de QR.
 
 ## Limitações conhecidas
 
