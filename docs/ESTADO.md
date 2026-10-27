@@ -41,7 +41,7 @@ Legenda: ✅ concluído e verificado · 🟡 parcial · ⬜ pendente
 - ✅ Histórico de alterações (Definições): todas as criações, correções, estornos, anulações, encerramentos e definições, com filtro por tipo.
 - ✅ Ícone próprio da app (adaptativo, com versão monocromática para ícones temáticos).
 - ✅ Design: Material 3 Expressive (beta) e Plus Jakarta Sans.
-- ⬜ Prova no aparelho real: leitura de QR AT
+- ✅ Prova no aparelho real: leitura de QR AT pela câmara; "Ver no mapa" (pesquisa a morada) e "Ligar" (abre o marcador com o número).
 - ✅ Registar horas por início, fim e pausa (ou só duração); "Repetir último" preenche obra, pessoas, horário e tipo do último registo.
 - ✅ Aviso quando as horas da mesma pessoa se sobrepõem ou o dia passa das 16 h; só grava depois de confirmar.
 - ✅ Cronómetro (um por pessoa, também para "Os dois"): começa em Registar horas, fica em destaque no Início e "Parar e registar" abre o formulário preenchido. Sobrevive a fechar a app.
