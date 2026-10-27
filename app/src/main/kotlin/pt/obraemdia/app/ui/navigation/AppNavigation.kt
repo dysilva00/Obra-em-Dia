@@ -10,6 +10,7 @@ import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Construction
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -56,6 +57,7 @@ import pt.obraemdia.app.ui.forms.RecordTimeScreen
 import pt.obraemdia.app.ui.home.HomeScreen
 import pt.obraemdia.app.ui.jobs.JobDetailScreen
 import pt.obraemdia.app.ui.jobs.JobsScreen
+import pt.obraemdia.app.ui.settings.SettingsScreen
 import kotlin.reflect.KClass
 
 @Serializable data object HomeRoute
@@ -70,6 +72,7 @@ import kotlin.reflect.KClass
 @Serializable data class ExpenseRoute(val jobId: String? = null)
 @Serializable data class ClosureRoute(val jobId: String)
 @Serializable data class EditJobRoute(val jobId: String)
+@Serializable data object SettingsRoute
 
 private data class Tab(val route: Any, val routeClass: KClass<*>, val label: String, val icon: ImageVector)
 
@@ -89,6 +92,7 @@ private fun NavDestination?.title(): String = when {
     hasRoute(ExpenseRoute::class) -> "Adicionar gasto"
     hasRoute(ClosureRoute::class) -> "Encerramento"
     hasRoute(EditJobRoute::class) -> "Editar obra"
+    hasRoute(SettingsRoute::class) -> "Definições"
     hasRoute(JobDetailRoute::class) -> "Obra"
     else -> tabs.firstOrNull { hasRoute(it.routeClass) }?.label.orEmpty()
 }
@@ -128,6 +132,13 @@ fun AppNavigation() {
                         if (currentTab == null && destination != null) {
                             IconButton(onClick = { nav.popBackStack() }) {
                                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
+                            }
+                        }
+                    },
+                    actions = {
+                        if (currentTab != null) {
+                            IconButton(onClick = { nav.navigate(SettingsRoute) }) {
+                                Icon(Icons.Filled.Settings, contentDescription = "Definições")
                             }
                         }
                     },
@@ -223,6 +234,10 @@ fun AppNavigation() {
                 val id = entry.toRoute<EditJobRoute>().jobId
                 val clients by vm.clients.collectAsStateWithLifecycle()
                 snap.summary(id)?.let { EditJobScreen(vm, it, clients, snap.isClosed(id), finished) }
+            }
+            composable<SettingsRoute> {
+                val timeOff by vm.timeOff.collectAsStateWithLifecycle()
+                SettingsScreen(vm, snap, timeOff, message)
             }
             composable<ClosureRoute> { entry -> ClosureScreen(vm, snap, entry.toRoute<ClosureRoute>().jobId, message, finished) }
             composable<ExpenseRoute> { entry -> ExpenseScreen(vm, snap, entry.toRoute<ExpenseRoute>().jobId, finished) }

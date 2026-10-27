@@ -81,7 +81,7 @@ fun Conflict.describe(snapshot: Snapshot): String {
 @Composable
 fun BookingScreen(vm: AppViewModel, snapshot: Snapshot, initialJobId: String?, initialDate: LocalDate?, onDone: (String) -> Unit) {
     val operationId = rememberSaveable { newId() }
-    val hours = WorkHours()
+    val hours = snapshot.workHours
     val jobs = snapshot.summaries.filter { it.job.status !in setOf(JobStatus.CANCELLED, JobStatus.COMPLETED) && !it.job.archived }
     var jobId by rememberSaveable { mutableStateOf(initialJobId) }
     var who by rememberSaveable { mutableStateOf<String?>(null) } // null = os dois

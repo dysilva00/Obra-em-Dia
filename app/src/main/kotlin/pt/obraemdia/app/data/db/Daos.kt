@@ -72,6 +72,14 @@ interface ScheduleDao {
     @Insert suspend fun insertEntry(entry: ScheduleEntryEntity)
     @Insert suspend fun insertAssignments(assignments: List<ScheduleAssignmentEntity>)
     @Insert suspend fun insertTimeOff(timeOff: TimeOffEntity)
+    @Update suspend fun updateTimeOff(timeOff: TimeOffEntity)
+
+    @Query("SELECT * FROM time_off WHERE id = :id")
+    suspend fun getTimeOff(id: String): TimeOffEntity?
+
+    /** Todas as indisponibilidades ativas (para as definições). */
+    @Query("SELECT * FROM time_off WHERE deletedAt IS NULL ORDER BY startMs DESC")
+    fun observeAllTimeOff(): Flow<List<TimeOffEntity>>
 
     @Query(
         """

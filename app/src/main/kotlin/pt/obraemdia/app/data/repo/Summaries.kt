@@ -26,6 +26,8 @@ import pt.obraemdia.domain.money.Money
 import pt.obraemdia.domain.money.Vat
 import pt.obraemdia.domain.money.sum
 import pt.obraemdia.domain.money.sumMoney
+import pt.obraemdia.domain.schedule.WorkHours
+import java.time.LocalTime
 import java.time.LocalDate
 import java.time.YearMonth
 
@@ -80,6 +82,8 @@ data class Snapshot(
     }
 
     val toPaySuppliers: Money get() = purchaseStatus.sumMoney { it.outstanding }
+
+    val workHours: WorkHours get() = Settings.workHours(settings)
 
     val openingBalance: Money get() = Money(settings[Settings.OPENING_BALANCE_CENTS]?.toLongOrNull() ?: 0)
 
@@ -178,6 +182,19 @@ object Settings {
     const val OPENING_BALANCE_CENTS = "opening_balance_cents"
     const val DEFAULT_VAT_BP = "default_vat_bp"
     const val TRAVEL_MARGIN_MINUTES = "travel_margin_minutes"
+    const val MORNING_START = "morning_start"
+    const val MORNING_END = "morning_end"
+    const val AFTERNOON_START = "afternoon_start"
+    const val AFTERNOON_END = "afternoon_end"
+
+    /** Horário configurado; valores em falta ou inválidos usam o horário provisório. */
+    fun workHours(map: Map<String, String>): WorkHours {
+        val d = WorkHours()
+        fun t(key: String, default: LocalTime) = map[key]?.let { runCatching { LocalTime.parse(it) }.getOrNull() } ?: default
+        return runCatching {
+            WorkHours(t(MORNING_START, d.morningStart), t(MORNING_END, d.morningEnd), t(AFTERNOON_START, d.afternoonStart), t(AFTERNOON_END, d.afternoonEnd))
+        }.getOrDefault(d)
+    }
 
     fun toMap(list: List<SettingEntity>) = list.associate { it.key to it.value }
 }

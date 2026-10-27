@@ -5,7 +5,7 @@ Legenda: ✅ concluído e verificado · 🟡 parcial · ⬜ pendente
 ## Verificação
 
 - `gradlew :domain:test`: 38 testes de regras (dinheiro, IVA, repartição, custos e IVA recuperável, tipos de documento, NIF, agenda/conflitos, sugestão de dias livres, cobrança, saldos, estados, encerramento).
-- `gradlew connectedDebugAndroidTest`: 40 testes no emulador (idempotência, taxas históricas, transações, chaves estrangeiras, remoção de demonstração, agendamento com conflitos, estados, cancelamento, gastos/repartições/duplicados/crédito/notas de crédito, estornos, correção e anulação de horas, anulação de compras, encerramento/bloqueio/reabertura/revisões, acordo/extras/materiais/edição, migrações v1→v2→v3→v4→v5).
+- `gradlew connectedDebugAndroidTest`: 43 testes no emulador (idempotência, taxas históricas, transações, chaves estrangeiras, remoção de demonstração, agendamento com conflitos, estados, cancelamento, gastos/repartições/duplicados/crédito/notas de crédito, estornos, correção e anulação de horas, anulação de compras, encerramento/bloqueio/reabertura/revisões, acordo/extras/materiais/edição, definições/indisponibilidades, migrações v1→v2→v3→v4→v5).
   **Atenção:** este comando desinstala a app no fim e apaga os dados do emulador.
 - Verificado manualmente no emulador (API 37): navegação, letra a 130 %, registo de pagamento com duplo toque (gravado uma única vez) e persistência depois de fechar a app à força.
 
@@ -28,6 +28,7 @@ Legenda: ✅ concluído e verificado · 🟡 parcial · ⬜ pendente
 - ✅ Revisão de encerramento com balanço, verificação (bloqueios e avisos), responsável opcional e notas; encerramento transacional e versionado; obra encerrada bloqueia alterações financeiras; reabrir com motivo cria nova revisão.
 - ✅ Editar obra (título, notas, cliente existente ou novo com telefone, morada, prioridade, política de materiais); Ligar e Ver no mapa.
 - ✅ Acordo e extras: alterar preço/IVA/modalidade com motivo e histórico; extras aprovados e materiais cobrados ao cliente (com evidência, "já incluído"), anuláveis com motivo.
+- ✅ Definições (roda dentada no topo): nome e taxas habituais de cada pessoa, saldo inicial, margem de deslocação, horário de trabalho (usado nas marcações), indisponibilidades com aviso de marcações em conflito.
 - ⬜ Prova no aparelho real: leitura de QR AT
 - ⬜ Prova no aparelho real: seletor de contactos
 - ⬜ Exportação via SAF e ciclo de backup/restauro com anexo
@@ -39,7 +40,7 @@ Leitura de QR, Projeções e Exportar.
 ## Limitações conhecidas
 
 - Ainda não há ecrã para consultar o histórico de auditoria (fica gravado em audit_events).
-- Os nomes e taxas das pessoas são provisórios e ainda não há ecrã de definições.
+- Os nomes, taxas, horário e saldo inicial vêm com valores provisórios: confirmar e acertar em Definições.
 
 ## Fases 1–3
 

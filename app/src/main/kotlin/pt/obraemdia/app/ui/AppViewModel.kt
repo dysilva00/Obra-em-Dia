@@ -229,6 +229,29 @@ class AppViewModel(private val container: AppContainer) : ViewModel() {
         "Anulado (fica no histórico)"
     }
 
+    val timeOff: StateFlow<List<pt.obraemdia.app.data.db.TimeOffEntity>> =
+        container.settings.timeOff.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    suspend fun updateWorker(id: String, name: String, sale: Money, cost: Money): SaveResult = save {
+        container.settings.updateWorker(id, name, pt.obraemdia.domain.money.HourlyRate(sale.cents), pt.obraemdia.domain.money.HourlyRate(cost.cents))
+        "Pessoa atualizada (as horas já registadas mantêm as taxas)"
+    }
+
+    suspend fun saveBusiness(opening: Money, marginMinutes: Int, hours: pt.obraemdia.domain.schedule.WorkHours): SaveResult = save {
+        container.settings.saveBusiness(opening, marginMinutes, hours)
+        "Definições gravadas"
+    }
+
+    suspend fun addTimeOff(workerId: String, from: LocalDate, to: LocalDate, reason: String): SaveResult = save {
+        val clashes = container.settings.addTimeOff(workerId, from, to, reason)
+        "Indisponibilidade registada" + if (clashes > 0) " · atenção: $clashes marcação(ões) ficam em conflito (ver Agenda)" else ""
+    }
+
+    suspend fun removeTimeOff(id: String): SaveResult = save {
+        container.settings.removeTimeOff(id)
+        "Indisponibilidade removida"
+    }
+
     suspend fun deleteDemoData(): SaveResult =
         runCatching { container.demoSeeder.deleteDemoData() }.fold(
             onSuccess = { SaveResult(true, "Dados de demonstração removidos") },
