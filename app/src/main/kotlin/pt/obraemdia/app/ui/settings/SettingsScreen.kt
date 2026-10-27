@@ -1,5 +1,6 @@
 package pt.obraemdia.app.ui.settings
 
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Science
@@ -58,11 +59,17 @@ private val hhmm = DateTimeFormatter.ofPattern("HH:mm")
 private fun parseTime(s: String): LocalTime? = runCatching { LocalTime.parse(s.trim().padStart(5, '0'), hhmm) }.getOrNull()
 
 @Composable
-fun SettingsScreen(vm: AppViewModel, snapshot: Snapshot, timeOff: List<TimeOffEntity>, onMessage: (String) -> Unit) {
+fun SettingsScreen(vm: AppViewModel, snapshot: Snapshot, timeOff: List<TimeOffEntity>, onMessage: (String) -> Unit, onHistory: () -> Unit) {
     Column(
         Modifier.verticalScroll(rememberScrollState()).imePadding().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
+        pt.obraemdia.app.ui.components.ShortcutRow(
+            title = "Histórico de alterações",
+            subtitle = "Correções, estornos, encerramentos e definições",
+            icon = Icons.Filled.History,
+            onClick = onHistory,
+        )
         Text("Pessoas", style = MaterialTheme.typography.titleMedium)
         snapshot.workers.forEach { w -> WorkerCard(vm, w, onMessage) }
         BusinessCard(vm, snapshot, onMessage)

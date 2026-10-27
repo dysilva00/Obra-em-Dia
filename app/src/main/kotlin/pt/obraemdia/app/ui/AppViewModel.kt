@@ -337,6 +337,9 @@ class AppViewModel(private val container: AppContainer) : ViewModel() {
         if (limit == null) "Limite removido" else "Limite anual de ${limit.format()} gravado"
     }
 
+    val history: StateFlow<List<pt.obraemdia.app.data.db.AuditEventEntity>> =
+        container.database.auditDao().observeRecent(500).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
     suspend fun deleteDemoData(): SaveResult =
         runCatching { container.demoSeeder.deleteDemoData() }.fold(
             onSuccess = { SaveResult(true, "Dados de demonstração removidos") },

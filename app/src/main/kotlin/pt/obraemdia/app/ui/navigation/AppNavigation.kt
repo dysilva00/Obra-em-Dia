@@ -81,6 +81,7 @@ import kotlin.reflect.KClass
 @Serializable data object SettingsRoute
 @Serializable data object ForecastRoute
 @Serializable data object InvoicesRoute
+@Serializable data object HistoryRoute
 @Serializable data object QrScanRoute
 @Serializable data class JobNotesRoute(val jobId: String)
 
@@ -105,6 +106,7 @@ private fun NavDestination?.title(): String = when {
     hasRoute(SettingsRoute::class) -> "Definições"
     hasRoute(ForecastRoute::class) -> "Projeções"
     hasRoute(InvoicesRoute::class) -> "Faturas emitidas"
+    hasRoute(HistoryRoute::class) -> "Histórico de alterações"
     hasRoute(QrScanRoute::class) -> "Ler código QR"
     hasRoute(JobNotesRoute::class) -> "Notas, fotos e checklist"
     hasRoute(JobDetailRoute::class) -> "Obra"
@@ -263,6 +265,10 @@ fun AppNavigation() {
                 snap.summary(id)?.let { EditJobScreen(vm, it, clients, snap.isClosed(id), finished) }
             }
             composable<JobNotesRoute> { entry -> pt.obraemdia.app.ui.jobs.JobNotesScreen(vm.media, entry.toRoute<JobNotesRoute>().jobId, vm.today, message) }
+            composable<HistoryRoute> {
+                val events by vm.history.collectAsStateWithLifecycle()
+                pt.obraemdia.app.ui.settings.HistoryScreen(events)
+            }
             composable<InvoicesRoute> {
                 val invoices by vm.issuedInvoices.collectAsStateWithLifecycle()
                 val paths by vm.invoiceAttachments.collectAsStateWithLifecycle()
@@ -283,7 +289,7 @@ fun AppNavigation() {
             composable<ForecastRoute> { ForecastScreen(vm, snap) }
             composable<SettingsRoute> {
                 val timeOff by vm.timeOff.collectAsStateWithLifecycle()
-                SettingsScreen(vm, snap, timeOff, message)
+                SettingsScreen(vm, snap, timeOff, message, onHistory = { nav.navigate(HistoryRoute) })
             }
             composable<ClosureRoute> { entry -> ClosureScreen(vm, snap, entry.toRoute<ClosureRoute>().jobId, message, finished) }
             composable<ExpenseRoute> { entry -> ExpenseScreen(vm, snap, entry.toRoute<ExpenseRoute>().jobId, finished) }

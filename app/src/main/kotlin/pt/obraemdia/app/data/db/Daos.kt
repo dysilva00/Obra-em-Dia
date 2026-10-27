@@ -160,6 +160,9 @@ interface CashDao {
 @Dao
 interface AuditDao {
     @Insert suspend fun insert(event: AuditEventEntity)
+
+    @Query("SELECT * FROM audit_events ORDER BY at DESC LIMIT :limit")
+    fun observeRecent(limit: Int): Flow<List<AuditEventEntity>>
 }
 
 @Dao

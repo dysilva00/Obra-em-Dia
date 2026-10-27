@@ -163,7 +163,7 @@ class IssuedInvoices(
                 )
                 // Corrida rara (duas gravações em simultâneo): a restrição única protege; desfaz o anexo.
                 check(row != -1L) { "Esta fatura já está registada" }
-                db.auditDao().insert(AuditEventEntity(newId(), "issued_invoice", id, "create", "$type ${input.docNumber} ${input.gross.format()}", now))
+                db.auditDao().insert(AuditEventEntity(newId(), "issued_invoice", id, "create", "${input.docNumber} · ${input.gross.format()}", now))
                 InvoiceOutcome.Saved
             }
         } catch (e: Exception) {
