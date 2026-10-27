@@ -17,6 +17,11 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import pt.obraemdia.app.data.db.AppDatabase
+import pt.obraemdia.app.data.db.ExpenseCategory
+import pt.obraemdia.app.data.repo.ExpenseLine
+import pt.obraemdia.app.data.repo.NewExpense
+import pt.obraemdia.domain.billing.DocumentType
+import pt.obraemdia.domain.billing.VatTreatment
 import pt.obraemdia.app.data.db.PaymentMethod
 import pt.obraemdia.app.data.db.TimeEntryEntity
 import pt.obraemdia.app.data.db.TimeEntryKind
@@ -179,24 +184,30 @@ class ObraRepositoryTest {
     }
 
     @Test
-    fun remover_demonstracao_e_atomico_quando_ha_registos_reais_ligados() = runTest {
+    fun remover_demonstracao_leva_o_que_foi_registado_em_obras_ficticias_e_mantem_obras_reais() = runTest {
         val seeder = DemoSeeder(db, repo)
         seeder.seedIfFirstRun(day)
         val demoJob = repo.snapshot.first().jobs.first { it.job.isDemo }.job.id
-        // Um pagamento real numa obra de demonstração impede a remoção (RESTRICT)…
+        val realJob = job()
+        // Registos feitos numa obra fictícia são fictícios: saem com ela.
         repo.recordPayment(NewPayment(newId(), demoJob, Money.euros(10), day, PaymentMethod.CASH, null))
+        // Uma compra real repartida entre a obra fictícia e uma obra real fica; só sai a parcela fictícia.
+        repo.recordExpense(
+            NewExpense(
+                newId(), "Loja", null, DocumentType.INVOICE, null, null, day, null, ExpenseCategory.MATERIAL, Money.euros(100), null,
+                VatTreatment.NOT_RECOVERABLE, listOf(ExpenseLine(demoJob, Money.euros(40)), ExpenseLine(realJob, Money.euros(60))),
+                true, day, PaymentMethod.CASH, null,
+            ),
+        )
 
-        try {
-            seeder.deleteDemoData()
-            fail("Devia ter falhado")
-        } catch (_: Exception) {
-        }
-        // …e nada é apagado pela metade.
+        seeder.deleteDemoData()
+
         val snap = repo.snapshot.first()
-        assertTrue(snap.hasDemoData)
-        assertEquals(5, snap.jobs.size)
-        // 3 recebimentos + 3 pagamentos de compras de demonstração + 1 pagamento real.
-        assertEquals(7, snap.movements.size)
-        assertEquals(4, snap.purchases.size)
+        assertFalse(snap.hasDemoData)
+        assertEquals(listOf(realJob), snap.jobs.map { it.job.id })
+        assertEquals(1, snap.purchases.size)
+        assertEquals(Money.euros(60), snap.summary(realJob)!!.costs)
+        assertEquals(Money.euros(40), snap.purchaseStatus.single().unallocated)
+        assertEquals(1, snap.movements.size) // o pagamento da compra real
     }
 }

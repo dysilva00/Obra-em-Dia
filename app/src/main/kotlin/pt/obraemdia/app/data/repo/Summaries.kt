@@ -3,7 +3,10 @@ package pt.obraemdia.app.data.repo
 import pt.obraemdia.app.data.db.CashKind
 import pt.obraemdia.app.data.db.CashMovementEntity
 import pt.obraemdia.app.data.db.CostAllocationEntity
+import pt.obraemdia.app.data.db.ChargeKind
+import pt.obraemdia.app.data.db.JobChargeEntity
 import pt.obraemdia.app.data.db.JobClosureEntity
+import pt.obraemdia.app.data.db.PriceRevisionEntity
 import pt.obraemdia.app.data.db.PurchaseDocumentEntity
 import pt.obraemdia.app.data.db.JobRow
 import pt.obraemdia.app.data.db.SettingEntity
@@ -36,6 +39,8 @@ data class Snapshot(
     val purchases: List<PurchaseDocumentEntity> = emptyList(),
     val allocations: List<CostAllocationEntity> = emptyList(),
     val closures: List<JobClosureEntity> = emptyList(),
+    val charges: List<JobChargeEntity> = emptyList(),
+    val priceRevisions: List<PriceRevisionEntity> = emptyList(),
 ) {
     /** Ids de movimentos que já foram estornados. */
     val reversedIds: Set<String> by lazy { movements.mapNotNull { it.reversalOfId }.toSet() }
@@ -84,9 +89,10 @@ data class Snapshot(
         val entriesByJob = timeEntries.groupBy { it.jobId }
         val cashByJob = movements.filter { it.jobId != null }.groupBy { it.jobId }
         val costsByJob = allocations.filter { it.jobId != null }.groupBy { it.jobId }
+        val chargesByJob = charges.filter { it.deletedAt == null }.groupBy { it.jobId }
         jobs.map { row ->
             val costLines = costsByJob[row.job.id].orEmpty().mapNotNull { a -> docsById[a.documentId]?.let { a to it } }
-            JobSummary.of(row, entriesByJob[row.job.id].orEmpty(), cashByJob[row.job.id].orEmpty(), costLines)
+            JobSummary.of(row, entriesByJob[row.job.id].orEmpty(), cashByJob[row.job.id].orEmpty(), costLines, chargesByJob[row.job.id].orEmpty())
         }
     }
 
@@ -123,6 +129,8 @@ data class JobSummary(
             entries: List<TimeEntryEntity>,
             cash: List<CashMovementEntity>,
             costLines: List<Pair<CostAllocationEntity, PurchaseDocumentEntity>> = emptyList(),
+            /** Extras e materiais ativos (não anulados). */
+            charges: List<JobChargeEntity> = emptyList(),
         ): JobSummary {
             val job = row.job
             val facts = entries.map {
@@ -137,6 +145,9 @@ data class JobSummary(
                         mode = job.billingMode,
                         materialsPolicy = job.materialsPolicy,
                         approvedFixedPrice = Money(job.fixedPriceNetCents ?: 0),
+                        // Extras e materiais já incluídos no preço não somam outra vez.
+                        extrasNotIncluded = charges.filter { it.kind == ChargeKind.EXTRA && !it.includedInPrice }.map { Money(it.amountNetCents) },
+                        materialsBilledToClient = charges.filter { it.kind == ChargeKind.MATERIAL && !it.includedInPrice }.map { Money(it.amountNetCents) },
                         timeEntries = facts,
                     ),
                 )

@@ -132,7 +132,7 @@ class Corrections(private val db: AppDatabase, private val repo: ObraRepository,
         val row = requireNotNull(f.row(jobId)) { "Obra não encontrada" }
         val docs = f.documents(jobId).associateBy { it.id }
         val costLines = f.allocations(jobId).mapNotNull { a -> docs[a.documentId]?.let { a to it } }
-        val summary = JobSummary.of(row, f.timeEntries(jobId), f.cash(jobId), costLines)
+        val summary = JobSummary.of(row, f.timeEntries(jobId), f.cash(jobId), costLines, db.agreementDao().activeCharges(jobId))
         // Dívida a fornecedores em documentos desta obra: não impede o fecho, mas é mostrada.
         val unpaid = docs.values.filter { it.grossCents > 0 }.sumMoney { Money(it.grossCents - db.purchaseDao().paidCents(it.id)) }
         val balance = summary.balance

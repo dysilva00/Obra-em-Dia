@@ -12,6 +12,10 @@ import pt.obraemdia.app.data.db.ScheduleRow
 import pt.obraemdia.app.data.db.TimeOffEntity
 import pt.obraemdia.app.data.db.PaymentMethod
 import pt.obraemdia.app.data.repo.BookingOutcome
+import pt.obraemdia.app.data.repo.AgreementChange
+import pt.obraemdia.app.data.repo.JobDetails
+import pt.obraemdia.app.data.repo.NewCharge
+import pt.obraemdia.app.data.db.ChargeKind
 import pt.obraemdia.app.data.repo.ClosureConfirmations
 import pt.obraemdia.app.data.repo.ClosureOutcome
 import pt.obraemdia.app.data.repo.ClosureReview
@@ -58,6 +62,9 @@ class AppViewModel(private val container: AppContainer) : ViewModel() {
 
     val snapshot: StateFlow<Snapshot?> =
         repo.snapshot.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    val clients: StateFlow<List<pt.obraemdia.app.data.db.ClientEntity>> =
+        repo.clients.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /**
      * Agenda de ~4 meses para trás a 1 ano para a frente, para o calendário mensal.
@@ -200,11 +207,33 @@ class AppViewModel(private val container: AppContainer) : ViewModel() {
         "Obra reaberta"
     }
 
+    suspend fun updateJobDetails(jobId: String, d: JobDetails): SaveResult = save {
+        container.agreement.updateDetails(jobId, d)
+        "Obra atualizada"
+    }
+
+    suspend fun changeAgreement(jobId: String, c: AgreementChange): SaveResult = save {
+        container.agreement.changeAgreement(jobId, c)
+        "Acordo atualizado (o anterior fica no histórico)"
+    }
+
+    suspend fun addCharge(input: NewCharge): SaveResult = save {
+        when (container.agreement.addCharge(input)) {
+            SaveOutcome.Saved -> if (input.kind == ChargeKind.EXTRA) "Extra registado" else "Material cobrado registado"
+            SaveOutcome.Duplicate -> "Já tinha sido gravado"
+        }
+    }
+
+    suspend fun cancelCharge(id: String, reason: String): SaveResult = save {
+        container.agreement.cancelCharge(id, reason)
+        "Anulado (fica no histórico)"
+    }
+
     suspend fun deleteDemoData(): SaveResult =
         runCatching { container.demoSeeder.deleteDemoData() }.fold(
             onSuccess = { SaveResult(true, "Dados de demonstração removidos") },
             // A remoção é atómica: se falhar (p. ex. horas reais numa obra fictícia), nada foi apagado.
-            onFailure = { SaveResult(false, "Nada foi removido: há registos reais ligados a obras de demonstração") },
+            onFailure = { SaveResult(false, "Nada foi removido: ${it.message}") },
         )
 
     private suspend fun save(block: suspend () -> String): SaveResult =

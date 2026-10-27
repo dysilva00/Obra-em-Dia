@@ -158,7 +158,12 @@ class ObraRepository(private val db: AppDatabase, private val clock: () -> Long 
         db.purchaseDao().observeAll(),
         db.purchaseDao().observeAllocations(),
         db.closureDao().observeAll(),
-    ) { base, purchases, allocations, closures -> base.copy(purchases = purchases, allocations = allocations, closures = closures) }
+        combine(db.agreementDao().observeCharges(), db.agreementDao().observeRevisions()) { c, r -> c to r },
+    ) { base, purchases, allocations, closures, (charges, revisions) ->
+        base.copy(purchases = purchases, allocations = allocations, closures = closures, charges = charges, priceRevisions = revisions)
+    }
+
+    val clients: Flow<List<ClientEntity>> = db.clientDao().observeAll()
 
     fun schedule(fromMs: Long, toMs: Long): Flow<Pair<List<ScheduleRow>, List<TimeOffEntity>>> =
         combine(db.scheduleDao().observeRange(fromMs, toMs), db.scheduleDao().observeTimeOff(fromMs, toMs)) { a, b -> a to b }

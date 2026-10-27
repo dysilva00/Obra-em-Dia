@@ -55,3 +55,11 @@ Registo das escolhas reversíveis tomadas durante o desenvolvimento. A especific
 - **Obra encerrada:** horas, recebimentos, gastos, marcações e mudanças de estado são recusados (`JobClosedException`). Pagar a fornecedores continua a ser permitido, porque a obrigação mantém-se depois do fecho.
 - **Reabrir:** exige motivo e é registado na revisão atual. Encerrar de novo cria a revisão seguinte e as anteriores ficam guardadas.
 - O responsável indicado no encerramento é apenas uma indicação: sem contas de acesso, não prova quem fez a revisão.
+
+## Acordo, extras e dados da obra
+
+- **Acordo de preço:** o preço fixo sem IVA, a taxa de IVA e a modalidade estão na obra e representam o acordo atual. Cada alteração cria uma linha em `price_revisions` com os valores antigos e novos, a data de aprovação e o motivo. O acordo anterior nunca é apagado.
+- **Extras e materiais cobrados:** ficam em `job_charges`, com valores sem IVA. Os extras não incluídos no preço somam ao valor de venda. Os materiais só somam quando a política da obra é "cobrados à parte". Os itens "já incluído no preço" ficam registados mas não somam. Anular exige motivo e deixa o registo no histórico.
+- **Obra encerrada:** o acordo, os extras, os materiais e a política de materiais ficam bloqueados. O título, as notas, o cliente, a morada e a prioridade podem ser corrigidos sem impacto financeiro.
+- **Telefone do cliente:** pertence ao cliente e é partilhado pelas suas obras. "Ligar" abre o marcador (`ACTION_DIAL`) e não liga sozinho; "Ver no mapa" abre a app de mapas com `geo:`.
+- **Remover demonstração:** sai tudo o que estiver ligado a obras fictícias. Uma compra repartida também por uma obra real fica, e só a parcela fictícia sai, passando a "por classificar". Clientes e locais fictícios usados por obras reais deixam de ser marcados como demonstração e ficam.

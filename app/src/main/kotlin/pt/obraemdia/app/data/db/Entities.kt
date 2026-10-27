@@ -359,3 +359,56 @@ data class JobClosureEntity(
     val reopenedAt: Long? = null,
     val reopenReason: String? = null,
 )
+
+/**
+ * Histórico do acordo de preço de uma obra. Cada alteração (preço, IVA, modalidade) guarda
+ * os valores anteriores e os novos; o acordo anterior nunca é apagado.
+ */
+@Entity(
+    tableName = "price_revisions",
+    foreignKeys = [ForeignKey(JobEntity::class, ["id"], ["jobId"], onDelete = ForeignKey.RESTRICT)],
+    indices = [Index(value = ["jobId", "revision"], unique = true)],
+)
+data class PriceRevisionEntity(
+    @PrimaryKey val id: String,
+    val jobId: String,
+    val revision: Int,
+    val oldBillingMode: BillingMode,
+    val newBillingMode: BillingMode,
+    val oldFixedPriceNetCents: Long?,
+    val newFixedPriceNetCents: Long?,
+    val oldVatRateBp: Int?,
+    val newVatRateBp: Int?,
+    val approvedOn: LocalDate,
+    val reason: String,
+    val createdAt: Long,
+)
+
+enum class ChargeKind { EXTRA, MATERIAL }
+
+/**
+ * Valor a cobrar ao cliente para além do preço base: extra aprovado ou material cobrado à parte.
+ * Valores SEM IVA. Anular preenche deletedAt e o motivo (fica no histórico).
+ */
+@Entity(
+    tableName = "job_charges",
+    foreignKeys = [ForeignKey(JobEntity::class, ["id"], ["jobId"], onDelete = ForeignKey.RESTRICT)],
+    indices = [Index("jobId"), Index(value = ["operationId"], unique = true)],
+)
+data class JobChargeEntity(
+    @PrimaryKey val id: String,
+    val operationId: String,
+    val jobId: String,
+    val kind: ChargeKind,
+    val description: String,
+    val amountNetCents: Long,
+    val approvedOn: LocalDate,
+    /** Evidência/nota da aprovação (ex.: "aprovado por SMS a 12/10"). */
+    val evidence: String? = null,
+    /** Já incluído no preço acordado: não soma outra vez ao valor da obra. */
+    val includedInPrice: Boolean = false,
+    val createdAt: Long,
+    val deletedAt: Long? = null,
+    val deleteReason: String? = null,
+    val isDemo: Boolean = false,
+)

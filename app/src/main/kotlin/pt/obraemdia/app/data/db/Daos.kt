@@ -35,6 +35,7 @@ data class JobRow(
     @Embedded val job: JobEntity,
     val clientName: String?,
     val siteAddress: String?,
+    val clientPhone: String? = null,
 )
 
 @Dao
@@ -44,7 +45,7 @@ interface JobDao {
 
     @Query(
         """
-        SELECT jobs.*, clients.name AS clientName, work_sites.address AS siteAddress
+        SELECT jobs.*, clients.name AS clientName, work_sites.address AS siteAddress, clients.phone AS clientPhone
         FROM jobs
         LEFT JOIN clients ON clients.id = jobs.clientId
         LEFT JOIN work_sites ON work_sites.id = jobs.siteId
@@ -221,7 +222,7 @@ interface ClosureDao {
 interface JobFactsDao {
     @Query(
         """
-        SELECT jobs.*, clients.name AS clientName, work_sites.address AS siteAddress
+        SELECT jobs.*, clients.name AS clientName, work_sites.address AS siteAddress, clients.phone AS clientPhone
         FROM jobs LEFT JOIN clients ON clients.id = jobs.clientId LEFT JOIN work_sites ON work_sites.id = jobs.siteId
         WHERE jobs.id = :jobId
         """,
@@ -249,4 +250,39 @@ interface JobFactsDao {
         """,
     )
     suspend fun documents(jobId: String): List<PurchaseDocumentEntity>
+}
+
+@Dao
+interface AgreementDao {
+    @Insert suspend fun insertRevision(revision: PriceRevisionEntity)
+
+    @Query("SELECT COALESCE(MAX(revision), 0) FROM price_revisions WHERE jobId = :jobId")
+    suspend fun lastRevision(jobId: String): Int
+
+    @Query("SELECT * FROM price_revisions ORDER BY jobId, revision")
+    fun observeRevisions(): Flow<List<PriceRevisionEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertCharge(charge: JobChargeEntity): Long
+
+    @Update suspend fun updateCharge(charge: JobChargeEntity)
+
+    @Query("SELECT * FROM job_charges WHERE id = :id")
+    suspend fun getCharge(id: String): JobChargeEntity?
+
+    /** Inclui as anuladas, para o histórico; os cálculos filtram deletedAt. */
+    @Query("SELECT * FROM job_charges ORDER BY approvedOn, createdAt")
+    fun observeCharges(): Flow<List<JobChargeEntity>>
+
+    @Query("SELECT * FROM job_charges WHERE jobId = :jobId AND deletedAt IS NULL")
+    suspend fun activeCharges(jobId: String): List<JobChargeEntity>
+
+    @Update suspend fun updateClient(client: ClientEntity)
+    @Update suspend fun updateSite(site: WorkSiteEntity)
+
+    @Query("SELECT * FROM clients WHERE id = :id")
+    suspend fun client(id: String): ClientEntity?
+
+    @Query("SELECT * FROM work_sites WHERE id = :id")
+    suspend fun site(id: String): WorkSiteEntity?
 }

@@ -76,7 +76,7 @@ fun DemoBanner(onRemove: () -> Unit, modifier: Modifier = Modifier) {
         AlertDialog(
             onDismissRequest = { confirm = false },
             title = { Text("Remover dados de demonstração?") },
-            text = { Text("São apagadas as obras, horas, pagamentos e marcações fictícias. As pessoas e os registos que criou ficam.") },
+            text = { Text("São apagadas as obras fictícias e tudo o que foi registado nelas (horas, pagamentos, gastos, marcações). As pessoas e as obras que criou ficam.") },
             confirmButton = { TextButton(onClick = { confirm = false; onRemove() }) { Text("Remover") } },
             dismissButton = { TextButton(onClick = { confirm = false }) { Text("Cancelar") } },
         )

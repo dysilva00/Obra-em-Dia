@@ -5,7 +5,7 @@ Legenda: ✅ concluído e verificado · 🟡 parcial · ⬜ pendente
 ## Verificação
 
 - `gradlew :domain:test`: 38 testes de regras (dinheiro, IVA, repartição, custos e IVA recuperável, tipos de documento, NIF, agenda/conflitos, sugestão de dias livres, cobrança, saldos, estados, encerramento).
-- `gradlew connectedDebugAndroidTest`: 32 testes no emulador (idempotência, taxas históricas, transações, chaves estrangeiras, remoção de demonstração, agendamento com conflitos, estados, cancelamento, gastos/repartições/duplicados/crédito/notas de crédito, estornos, correção e anulação de horas, anulação de compras, encerramento/bloqueio/reabertura/revisões, migrações v1→v2→v3→v4).
+- `gradlew connectedDebugAndroidTest`: 40 testes no emulador (idempotência, taxas históricas, transações, chaves estrangeiras, remoção de demonstração, agendamento com conflitos, estados, cancelamento, gastos/repartições/duplicados/crédito/notas de crédito, estornos, correção e anulação de horas, anulação de compras, encerramento/bloqueio/reabertura/revisões, acordo/extras/materiais/edição, migrações v1→v2→v3→v4→v5).
   **Atenção:** este comando desinstala a app no fim e apaga os dados do emulador.
 - Verificado manualmente no emulador (API 37): navegação, letra a 130 %, registo de pagamento com duplo toque (gravado uma única vez) e persistência depois de fechar a app à força.
 
@@ -19,13 +19,15 @@ Legenda: ✅ concluído e verificado · 🟡 parcial · ⬜ pendente
 - ✅ Agendar obra: vários dias (descontínuos), dia completo/manhã/tarde/horas, pré-reserva, conflitos detetados enquanto se preenche e de novo na gravação, com as 3 saídas (outro dia sugerido, outra pessoa livre, manter com motivo).
 - ✅ Vista de calendário mensal na Agenda (com filtro por pessoa e "Agendar neste dia") e na ficha da obra (dias marcados dessa obra).
 - ✅ Mudar estado da obra com as regras do domínio; cancelar liberta as reservas futuras.
-- ✅ Esquema v4 com migrações automáticas testadas (v1→v2→v3→v4).
+- ✅ Esquema v5 com migrações automáticas testadas (v1→v2→v3→v4→v5).
 - ✅ Adicionar gasto: tipos de documento (guia/pró-forma/recibo recusados com explicação), fornecedor/NIF validado/nº, categoria, IVA incluído e se é recuperável (por definir por omissão), uma obra / despesa geral / repartição com valor por classificar visível, pago agora ou a crédito com vencimento, notas de crédito.
 - ✅ Duplicados de compras bloqueados (mesma operação, NIF+tipo+número, ATCUD).
 - ✅ Contas: por pagar a fornecedores (com vencidas) e ação Pagar (parcial ou total), por classificar.
 - ✅ Custos reais no resultado da obra (IVA recuperável fora do custo; por classificar entra e é sinalizado).
 - ✅ Correções auditáveis: estornar recebimentos/pagamentos (com motivo), corrigir ou anular horas, anular documentos de compra (estorna os pagamentos).
 - ✅ Revisão de encerramento com balanço, verificação (bloqueios e avisos), responsável opcional e notas; encerramento transacional e versionado; obra encerrada bloqueia alterações financeiras; reabrir com motivo cria nova revisão.
+- ✅ Editar obra (título, notas, cliente existente ou novo com telefone, morada, prioridade, política de materiais); Ligar e Ver no mapa.
+- ✅ Acordo e extras: alterar preço/IVA/modalidade com motivo e histórico; extras aprovados e materiais cobrados ao cliente (com evidência, "já incluído"), anuláveis com motivo.
 - ⬜ Prova no aparelho real: leitura de QR AT
 - ⬜ Prova no aparelho real: seletor de contactos
 - ⬜ Exportação via SAF e ciclo de backup/restauro com anexo
@@ -37,7 +39,6 @@ Leitura de QR, Projeções e Exportar.
 ## Limitações conhecidas
 
 - Ainda não há ecrã para consultar o histórico de auditoria (fica gravado em audit_events).
-- Ainda não há ecrã para editar dados da obra (título, cliente, preço) nem registar extras aprovados.
 - Os nomes e taxas das pessoas são provisórios e ainda não há ecrã de definições.
 
 ## Fases 1–3

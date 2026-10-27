@@ -58,6 +58,17 @@ class MigrationTest {
     }
 
     @Test
+    fun v4_para_v5_cria_acordos_e_extras() {
+        helper.createDatabase(4).close()
+        helper.runMigrationsAndValidate(5).use { db ->
+            db.prepare("SELECT (SELECT COUNT(*) FROM price_revisions) + (SELECT COUNT(*) FROM job_charges)").use { st ->
+                assertTrue(st.step())
+                assertEquals(0L, st.getLong(0))
+            }
+        }
+    }
+
+    @Test
     fun v3_para_v4_cria_revisoes_de_encerramento() {
         helper.createDatabase(3).close()
         helper.runMigrationsAndValidate(4).use { db ->

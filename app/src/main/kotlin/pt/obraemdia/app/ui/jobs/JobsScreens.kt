@@ -26,7 +26,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import pt.obraemdia.app.data.db.ChargeKind
+import pt.obraemdia.app.data.db.JobChargeEntity
 import pt.obraemdia.app.data.db.TimeEntryEntity
+import pt.obraemdia.app.data.repo.AgreementChange
+import pt.obraemdia.app.data.repo.NewCharge
+import pt.obraemdia.app.ui.forms.AgreementDialog
+import pt.obraemdia.app.ui.forms.ChargeDialog
 import pt.obraemdia.app.data.db.TimeEntryKind
 import pt.obraemdia.app.data.repo.JobSummary
 import pt.obraemdia.app.ui.components.DateField
@@ -143,6 +149,10 @@ fun JobDetailScreen(
     onAddExpense: () -> Unit,
     onChangeStatus: suspend (StatusChange) -> SaveResult,
     onReviewClosure: () -> Unit,
+    onEdit: () -> Unit,
+    onChangeAgreement: suspend (AgreementChange) -> SaveResult,
+    onAddCharge: suspend (NewCharge) -> SaveResult,
+    onCancelCharge: suspend (id: String, reason: String) -> SaveResult,
     onUpdateTime: suspend (id: String, date: LocalDate, minutes: Int, kind: TimeEntryKind, billable: Boolean, note: String?) -> SaveResult,
     onDeleteTime: suspend (id: String, reason: String) -> SaveResult,
     onMessage: (String) -> Unit,
@@ -156,6 +166,9 @@ fun JobDetailScreen(
     var statusDialog by rememberSaveable { mutableStateOf(false) }
     val closed = snapshot.isClosed(jobId)
     var editing by remember { mutableStateOf<TimeEntryEntity?>(null) }
+    var agreementDialog by remember { mutableStateOf(false) }
+    var chargeDialog by remember { mutableStateOf<ChargeKind?>(null) }
+    var cancellingCharge by remember { mutableStateOf<JobChargeEntity?>(null) }
     val jobBookings = agenda?.items.orEmpty().filter { it.booking.jobId == jobId }
     val bookedDays = jobBookings.map { it.booking.slot.start.atZone(AGENDA_ZONE).toLocalDate() }.distinct().sorted()
     var month by rememberSaveable { mutableStateOf(YearMonth.from(bookedDays.firstOrNull { it >= today } ?: today)) }
@@ -175,6 +188,7 @@ fun JobDetailScreen(
                     AssistChip(onClick = { statusDialog = true }, enabled = !closed, label = { Text("Mudar estado") }, modifier = Modifier.heightIn(min = 48.dp))
                 }
                 job.urgentReason?.let { Text("Motivo da urgência: $it", style = MaterialTheme.typography.bodyMedium) }
+                ContactActions(s.row.clientPhone, s.row.siteAddress, onEdit)
                 if (job.status == JobStatus.ON_HOLD) {
                     val reason = job.holdReason?.label ?: "—"
                     Text(
@@ -252,6 +266,14 @@ fun JobDetailScreen(
             }
         }
         item {
+            AgreementSection(
+                snapshot = snapshot, summary = s, closed = closed,
+                onChangeAgreement = { agreementDialog = true },
+                onAddCharge = { chargeDialog = it },
+                onCancelCharge = { cancellingCharge = it },
+            )
+        }
+        item {
             SectionCard("Horas", caption = "Real · ${s.entries.size} registo(s)") {
                 LabelValue("Total horas-pessoa", formatMinutes(s.minutes))
                 snapshot.workers.forEach { w ->
@@ -305,6 +327,26 @@ fun JobDetailScreen(
                 Text(if (closed) "Ver encerramento" else "Rever encerramento")
             }
         }
+    }
+
+    if (agreementDialog) {
+        AgreementDialog(s, today, onDismiss = { agreementDialog = false }, onConfirm = onChangeAgreement) { agreementDialog = false; onMessage(it) }
+    }
+    chargeDialog?.let { kind ->
+        ChargeDialog(jobId, kind, job.materialsPolicy, today, onDismiss = { chargeDialog = null }, onConfirm = onAddCharge) {
+            chargeDialog = null
+            onMessage(it)
+        }
+    }
+    cancellingCharge?.let { c ->
+        ReasonDialog(
+            title = if (c.kind == ChargeKind.EXTRA) "Anular extra" else "Anular material",
+            message = "${c.description} · ${Money(c.amountNetCents).format()}. Deixa de contar no valor da obra, mas fica no histórico.",
+            confirmLabel = "Anular",
+            onDismiss = { cancellingCharge = null },
+            onConfirm = { onCancelCharge(c.id, it) },
+            onDone = { cancellingCharge = null; onMessage(it) },
+        )
     }
 
     editing?.let { e ->

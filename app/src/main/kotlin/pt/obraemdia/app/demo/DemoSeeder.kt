@@ -42,17 +42,55 @@ import java.time.LocalDate
 /** Remove em bloco tudo o que foi criado como demonstração (nunca toca em registos reais). */
 @Dao
 interface DemoDao {
-    @Query("DELETE FROM schedule_entries WHERE isDemo = 1") suspend fun deleteSchedule()
+    // Tudo o que está ligado a uma obra fictícia é fictício e sai com ela. Registos de obras reais nunca são tocados.
+    @Query("DELETE FROM schedule_entries WHERE isDemo = 1 OR jobId IN (SELECT id FROM jobs WHERE isDemo = 1)") suspend fun deleteSchedule()
     @Query("DELETE FROM time_off WHERE isDemo = 1") suspend fun deleteTimeOff()
-    @Query("DELETE FROM time_entries WHERE isDemo = 1") suspend fun deleteTimeEntries()
-    @Query("DELETE FROM cash_movements WHERE isDemo = 1") suspend fun deleteCash()
+    @Query("DELETE FROM time_entries WHERE isDemo = 1 OR jobId IN (SELECT id FROM jobs WHERE isDemo = 1)") suspend fun deleteTimeEntries()
+
+    /**
+     * Compras a remover: fictícias, ou só atribuídas a obras fictícias. Uma compra repartida também
+     * por uma obra real fica; só a parcela da obra fictícia sai (passa a "por classificar").
+     */
+    @Query(
+        """
+        DELETE FROM cash_movements WHERE isDemo = 1
+            OR jobId IN (SELECT id FROM jobs WHERE isDemo = 1)
+            OR purchaseDocumentId IN ($DEMO_ONLY_PURCHASES)
+        """,
+    )
+    suspend fun deleteCash()
+
     // As parcelas (cost_allocations) são apagadas em cascata com o documento.
-    @Query("DELETE FROM purchase_documents WHERE isDemo = 1") suspend fun deletePurchases()
+    @Query("DELETE FROM purchase_documents WHERE id IN ($DEMO_ONLY_PURCHASES)")
+    suspend fun deletePurchases()
+
+    @Query("DELETE FROM cost_allocations WHERE jobId IN (SELECT id FROM jobs WHERE isDemo = 1)")
+    suspend fun deleteDemoAllocations()
+
+    @Query("DELETE FROM job_charges WHERE isDemo = 1 OR jobId IN (SELECT id FROM jobs WHERE isDemo = 1)") suspend fun deleteCharges()
+    @Query("DELETE FROM price_revisions WHERE jobId IN (SELECT id FROM jobs WHERE isDemo = 1)") suspend fun deleteRevisions()
+    @Query("DELETE FROM job_closures WHERE jobId IN (SELECT id FROM jobs WHERE isDemo = 1)") suspend fun deleteClosures()
     @Query("DELETE FROM jobs WHERE isDemo = 1") suspend fun deleteJobs()
-    @Query("DELETE FROM work_sites WHERE isDemo = 1") suspend fun deleteSites()
-    @Query("DELETE FROM clients WHERE isDemo = 1") suspend fun deleteClients()
+
+    // Clientes e locais fictícios que uma obra real passou a usar ficam (deixam de ser "demo").
+    @Query("DELETE FROM work_sites WHERE isDemo = 1 AND id NOT IN (SELECT siteId FROM jobs WHERE siteId IS NOT NULL)") suspend fun deleteSites()
+    @Query("UPDATE work_sites SET isDemo = 0 WHERE isDemo = 1") suspend fun keepUsedSites()
+    @Query(
+        "DELETE FROM clients WHERE isDemo = 1 AND id NOT IN (SELECT clientId FROM jobs WHERE clientId IS NOT NULL) AND id NOT IN (SELECT clientId FROM work_sites WHERE clientId IS NOT NULL)",
+    )
+    suspend fun deleteClients()
+    @Query("UPDATE clients SET isDemo = 0 WHERE isDemo = 1") suspend fun keepUsedClients()
+
     @Query("SELECT COUNT(*) FROM workers") suspend fun workerCount(): Int
 }
+
+private const val DEMO_ONLY_PURCHASES = """
+    SELECT d.id FROM purchase_documents d WHERE d.isDemo = 1
+    OR (
+        EXISTS (SELECT 1 FROM cost_allocations a JOIN jobs j ON j.id = a.jobId WHERE a.documentId = d.id AND j.isDemo = 1)
+        AND NOT EXISTS (SELECT 1 FROM cost_allocations a JOIN jobs j ON j.id = a.jobId WHERE a.documentId = d.id AND j.isDemo = 0)
+    )
+"""
 
 /**
  * Primeiro arranque: cria as duas pessoas com nomes e taxas PROVISÓRIOS (a confirmar, spec §20)
@@ -73,8 +111,9 @@ class DemoSeeder(private val db: AppDatabase, private val repo: ObraRepository) 
     suspend fun deleteDemoData() = repo.transaction {
         val d = db.demoDao()
         // Ordem inversa das dependências (chaves estrangeiras RESTRICT).
-        d.deleteSchedule(); d.deleteTimeOff(); d.deleteTimeEntries(); d.deleteCash(); d.deletePurchases()
-        d.deleteJobs(); d.deleteSites(); d.deleteClients()
+        d.deleteSchedule(); d.deleteTimeOff(); d.deleteTimeEntries(); d.deleteCash(); d.deletePurchases(); d.deleteDemoAllocations()
+        d.deleteCharges(); d.deleteRevisions(); d.deleteClosures(); d.deleteJobs()
+        d.deleteSites(); d.keepUsedSites(); d.deleteClients(); d.keepUsedClients()
         db.settingsDao().put(SettingEntity(Settings.OPENING_BALANCE_CENTS, "0"))
     }
 
