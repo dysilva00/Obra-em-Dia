@@ -41,6 +41,34 @@ class BusinessSettings(private val db: AppDatabase, private val repo: ObraReposi
         put(Settings.AFTERNOON_END, h.afternoonEnd.toString())
     }
 
+    /** Nova pessoa na atividade (não é uma conta de acesso). */
+    suspend fun addWorker(name: String, saleRate: HourlyRate, costRate: HourlyRate): String {
+        require(name.isNotBlank()) { "O nome é obrigatório" }
+        return repo.transaction {
+            val now = clock()
+            val id = newId()
+            db.workerDao().upsert(
+                pt.obraemdia.app.data.db.WorkerEntity(id, name.trim(), saleRate.centsPerHour, costRate.centsPerHour, db.workerDao().maxSortOrder() + 1, now, now),
+            )
+            audit("worker", id, "create", name.trim())
+            id
+        }
+    }
+
+    /**
+     * Remove (desativa) uma pessoa. As horas e marcações antigas mantêm-se com o nome dela.
+     * Recusa remover a última pessoa ativa ou alguém com marcações futuras.
+     */
+    suspend fun removeWorker(id: String) = repo.transaction {
+        val w = requireNotNull(db.workerDao().get(id)) { "Pessoa não encontrada" }
+        require(w.deletedAt == null) { "Esta pessoa já foi removida" }
+        require(db.workerDao().getAll().size > 1) { "Tem de ficar pelo menos uma pessoa" }
+        val future = db.workerDao().futureBookings(id, clock())
+        require(future == 0) { "${w.name} tem $future marcação(ões) a partir de hoje: mude-as ou remova-as primeiro na Agenda" }
+        db.workerDao().upsert(w.copy(deletedAt = clock(), updatedAt = clock()))
+        audit("worker", id, "delete", w.name)
+    }
+
     /** Preferências dos lembretes (só locais; o agendamento é feito por quem chama). */
     suspend fun saveReminders(prefs: pt.obraemdia.app.reminders.ReminderPrefs) = repo.transaction {
         prefs.toSettings().forEach { (k, v) -> put(k, v) }

@@ -67,7 +67,7 @@ data class NewTimeEntries(
     /** Gerado quando o formulário abre; repetir a gravação com o mesmo id não duplica. */
     val operationId: String,
     val jobId: String,
-    /** "Os dois" = duas pessoas: cria um registo por pessoa, editáveis separadamente. */
+    /** Várias pessoas ("Os dois"/"Todos"): cria um registo por pessoa, editáveis separadamente. */
     val workerIds: List<String>,
     val date: LocalDate,
     val minutes: Int,

@@ -78,7 +78,7 @@ class AppViewModel(private val container: AppContainer) : ViewModel() {
 
     /**
      * Agenda de ~4 meses para trás a 1 ano para a frente, para o calendário mensal.
-     * Com duas pessoas são poucas centenas de reservas; não justifica paginação.
+     * Com poucas pessoas são poucas centenas de reservas; não justifica paginação.
      */
     val agenda: StateFlow<AgendaState?> = run {
         val from = today.minusDays(120).atStartOfDay(AGENDA_ZONE).toInstant().toEpochMilli()
@@ -260,6 +260,16 @@ class AppViewModel(private val container: AppContainer) : ViewModel() {
     suspend fun saveBusiness(opening: Money, marginMinutes: Int, hours: pt.obraemdia.domain.schedule.WorkHours): SaveResult = save {
         container.settings.saveBusiness(opening, marginMinutes, hours)
         "Definições gravadas"
+    }
+
+    suspend fun addWorker(name: String, sale: Money, cost: Money): SaveResult = save {
+        container.settings.addWorker(name, pt.obraemdia.domain.money.HourlyRate(sale.cents), pt.obraemdia.domain.money.HourlyRate(cost.cents))
+        "${name.trim()} adicionado(a)"
+    }
+
+    suspend fun removeWorker(id: String): SaveResult = save {
+        container.settings.removeWorker(id)
+        "Pessoa removida (os registos antigos mantêm-se)"
     }
 
     suspend fun saveReminders(prefs: pt.obraemdia.app.reminders.ReminderPrefs, context: android.content.Context): SaveResult = save {

@@ -29,6 +29,7 @@ Legenda: ✅ concluído e verificado · 🟡 parcial · ⬜ pendente
 - ✅ Editar obra (título, notas, cliente existente ou novo com telefone, morada, prioridade, política de materiais); Ligar e Ver no mapa.
 - ✅ Acordo e extras: alterar preço/IVA/modalidade com motivo e histórico; extras aprovados e materiais cobrados ao cliente (com evidência, "já incluído"), anuláveis com motivo.
 - ✅ Definições (roda dentada no topo): nome e taxas habituais de cada pessoa, saldo inicial, margem de deslocação, horário de trabalho (usado nas marcações), indisponibilidades com aviso de marcações em conflito.
+- ✅ Número de pessoas configurável (adicionar/remover em Definições); com 1 pessoa os seletores "Quem" desaparecem.
 - ✅ Plano de pagamentos (prestações) por obra, com estado de cada prestação.
 - ✅ Projeções 30/60/90 dias (Contas → Projeções e Início): cenário confirmado vs. com propostas, por mês, ponto mais baixo, vencidos, previsão incompleta, adiamento simulado e pressupostos.
 - ✅ Alertas no Início: prestações e faturas vencidas, sobreposições, obras em espera a rever, dados em falta.

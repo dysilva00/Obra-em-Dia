@@ -34,7 +34,8 @@ import java.time.YearMonth
 
 /** Fotografia coerente dos dados usados pelos ecrãs de Início, Obras e Contas. */
 data class Snapshot(
-    val workers: List<WorkerEntity>,
+    /** Todas, incluindo removidas (inativas). Use [workers] para escolhas. */
+    val allWorkers: List<WorkerEntity>,
     val jobs: List<JobRow>,
     val timeEntries: List<TimeEntryEntity>,
     val movements: List<CashMovementEntity>,
@@ -91,7 +92,14 @@ data class Snapshot(
 
     val openingBalance: Money get() = Money(settings[Settings.OPENING_BALANCE_CENTS]?.toLongOrNull() ?: 0)
 
-    fun workerName(id: String) = workers.firstOrNull { it.id == id }?.name ?: "?"
+    /** Pessoas ativas, por ordem. */
+    val workers: List<WorkerEntity> by lazy { allWorkers.filter { it.deletedAt == null } }
+
+    /** Texto para "todas as pessoas": "Os dois" com 2, "Todos" com 3 ou mais (com 1 o seletor nem aparece). */
+    val everyoneLabel: String get() = if (workers.size == 2) "Os dois" else "Todos"
+
+    /** Nome também de pessoas já removidas (registos antigos). */
+    fun workerName(id: String) = allWorkers.firstOrNull { it.id == id }?.name ?: "?"
 
     val summaries: List<JobSummary> by lazy {
         val entriesByJob = timeEntries.groupBy { it.jobId }

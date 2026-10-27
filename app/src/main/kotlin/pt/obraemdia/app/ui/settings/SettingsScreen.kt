@@ -71,7 +71,13 @@ fun SettingsScreen(vm: AppViewModel, snapshot: Snapshot, timeOff: List<TimeOffEn
             onClick = onHistory,
         )
         Text("Pessoas", style = MaterialTheme.typography.titleMedium)
-        snapshot.workers.forEach { w -> WorkerCard(vm, w, onMessage) }
+        Text(
+            if (snapshot.workers.size == 1) "Uma pessoa na atividade." else "${snapshot.workers.size} pessoas na atividade.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        snapshot.workers.forEach { w -> WorkerCard(vm, w, canRemove = snapshot.workers.size > 1, onMessage) }
+        AddWorkerCard(vm, onMessage)
         BusinessCard(vm, snapshot, onMessage)
         RemindersCard(vm, snapshot, onMessage)
         TimeOffCard(vm, snapshot, timeOff, onMessage)
@@ -86,7 +92,8 @@ fun SettingsScreen(vm: AppViewModel, snapshot: Snapshot, timeOff: List<TimeOffEn
 }
 
 @Composable
-private fun WorkerCard(vm: AppViewModel, w: WorkerEntity, onMessage: (String) -> Unit) {
+private fun WorkerCard(vm: AppViewModel, w: WorkerEntity, canRemove: Boolean, onMessage: (String) -> Unit) {
+    var confirmRemove by remember { mutableStateOf(false) }
     var name by rememberSaveable(w.id) { mutableStateOf(w.name) }
     var sale by rememberSaveable(w.id) { mutableStateOf(Money(w.defaultSaleRateCents).editText()) }
     var cost by rememberSaveable(w.id) { mutableStateOf(Money(w.defaultCostRateCents).editText()) }
@@ -113,14 +120,74 @@ private fun WorkerCard(vm: AppViewModel, w: WorkerEntity, onMessage: (String) ->
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Button(
-            enabled = changed && name.isNotBlank() && saleMoney != null && costMoney != null && !busy,
-            onClick = {
-                busy = true
-                scope.launch { onMessage(vm.updateWorker(w.id, name, saleMoney!!, costMoney!!).message); busy = false }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Button(
+                enabled = changed && name.isNotBlank() && saleMoney != null && costMoney != null && !busy,
+                onClick = {
+                    busy = true
+                    scope.launch { onMessage(vm.updateWorker(w.id, name, saleMoney!!, costMoney!!).message); busy = false }
+                },
+                modifier = Modifier.heightIn(min = 48.dp),
+            ) { Text("Guardar") }
+            if (canRemove) {
+                TextButton(onClick = { confirmRemove = true }, modifier = Modifier.heightIn(min = 48.dp)) {
+                    Text("Remover", color = MaterialTheme.colorScheme.error)
+                }
+            }
+        }
+    }
+    if (confirmRemove) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { confirmRemove = false },
+            title = { Text("Remover ${w.name}?") },
+            text = { Text("Deixa de aparecer nas escolhas. As horas, marcações e registos antigos mantêm-se com o nome.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmRemove = false
+                    scope.launch { onMessage(vm.removeWorker(w.id).message) }
+                }) { Text("Remover") }
             },
-            modifier = Modifier.heightIn(min = 48.dp),
-        ) { Text("Guardar") }
+            dismissButton = { TextButton(onClick = { confirmRemove = false }) { Text("Cancelar") } },
+        )
+    }
+}
+
+/** Acrescentar uma pessoa à atividade (pode haver só uma, ou várias). */
+@Composable
+private fun AddWorkerCard(vm: AppViewModel, onMessage: (String) -> Unit) {
+    var open by rememberSaveable { mutableStateOf(false) }
+    var name by rememberSaveable { mutableStateOf("") }
+    var sale by rememberSaveable { mutableStateOf("") }
+    var cost by rememberSaveable { mutableStateOf("") }
+    val scope = rememberCoroutineScope()
+    if (!open) {
+        OutlinedButton(onClick = { open = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) { Text("+ Adicionar pessoa") }
+        return
+    }
+    val saleMoney = Money.parse(sale)?.takeIf { !it.isNegative }
+    val costMoney = Money.parse(cost)?.takeIf { !it.isNegative }
+    SectionCard("Nova pessoa", icon = Icons.Filled.Person) {
+        OutlinedTextField(name, { name = it }, label = { Text("Nome") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedTextField(sale, { sale = it }, label = { Text("Venda €/h") }, singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.weight(1f))
+            OutlinedTextField(cost, { cost = it }, label = { Text("Custo interno €/h") }, singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.weight(1f))
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(
+                enabled = name.isNotBlank() && saleMoney != null && costMoney != null,
+                onClick = {
+                    scope.launch {
+                        val r = vm.addWorker(name, saleMoney!!, costMoney!!)
+                        onMessage(r.message)
+                        if (r.ok) { open = false; name = ""; sale = ""; cost = "" }
+                    }
+                },
+                modifier = Modifier.heightIn(min = 48.dp),
+            ) { Text("Adicionar") }
+            TextButton(onClick = { open = false }, modifier = Modifier.heightIn(min = 48.dp)) { Text("Cancelar") }
+        }
     }
 }
 

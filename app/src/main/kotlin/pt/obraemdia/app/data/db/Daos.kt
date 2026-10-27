@@ -12,13 +12,29 @@ import pt.obraemdia.domain.billing.DocumentType
 
 @Dao
 interface WorkerDao {
-    @Query("SELECT * FROM workers WHERE deletedAt IS NULL ORDER BY sortOrder")
+    /** Inclui pessoas removidas (inativas), para os nomes no histórico; o Snapshot separa as ativas. */
+    @Query("SELECT * FROM workers ORDER BY sortOrder")
     fun observeAll(): Flow<List<WorkerEntity>>
 
     @Query("SELECT * FROM workers WHERE deletedAt IS NULL ORDER BY sortOrder")
     suspend fun getAll(): List<WorkerEntity>
 
     @Upsert suspend fun upsert(worker: WorkerEntity)
+
+    @Query("SELECT * FROM workers WHERE id = :id")
+    suspend fun get(id: String): WorkerEntity?
+
+    @Query("SELECT COALESCE(MAX(sortOrder), -1) FROM workers")
+    suspend fun maxSortOrder(): Int
+
+    /** Marcações a partir de [fromMs] com esta pessoa atribuída. */
+    @Query(
+        """
+        SELECT COUNT(*) FROM schedule_entries e JOIN schedule_assignments a ON a.entryId = e.id
+        WHERE a.workerId = :workerId AND e.deletedAt IS NULL AND e.endMs > :fromMs
+        """,
+    )
+    suspend fun futureBookings(workerId: String, fromMs: Long): Int
 }
 
 @Dao

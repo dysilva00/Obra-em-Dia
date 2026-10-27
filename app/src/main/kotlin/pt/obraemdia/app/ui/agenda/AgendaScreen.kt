@@ -113,9 +113,10 @@ fun AgendaScreen(
                 )
             }
         }
-        item {
+        // Com uma só pessoa não há nada a filtrar.
+        if (snapshot.workers.size > 1) item {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(workerFilter == null, { workerFilter = null }, { Text("Os dois") }, Modifier.heightIn(min = 48.dp))
+                FilterChip(workerFilter == null, { workerFilter = null }, { Text(snapshot.everyoneLabel) }, Modifier.heightIn(min = 48.dp))
                 snapshot.workers.forEach { w ->
                     FilterChip(workerFilter == w.id, { workerFilter = w.id }, { Text(w.name) }, Modifier.heightIn(min = 48.dp))
                 }

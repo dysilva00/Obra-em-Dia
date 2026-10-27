@@ -120,3 +120,10 @@ Registo das escolhas reversíveis tomadas durante o desenvolvimento. A especific
 - **Totais por ano e por NIF do emitente:** o valor declarado é de cada contribuinte. O limite anual a vigiar é opcional e configurável; a app não assume nenhum limite fiscal.
 - **Duplicados:** bloqueados pelo NIF + tipo + número ou pelo ATCUD. O PDF só é copiado depois de confirmar que a fatura não é duplicada.
 - **Natureza do registo:** uma fatura emitida não é um recebimento; os recebimentos continuam nos movimentos. É um controlo interno e não comunica nada à AT.
+
+## Número de pessoas
+
+- **Configurável (1 ou mais):** decisão do utilizador a 27/10/2026, que substitui as "duas pessoas" fixas da spec. As pessoas adicionam-se e removem-se em Definições.
+- **Remover = desativar** (`deletedAt`): a pessoa sai das escolhas, mas as horas, marcações e registos antigos mantêm o nome. Não se pode remover a última pessoa ativa, nem alguém com marcações a partir de hoje.
+- **Interface:** com 1 pessoa, os seletores "Quem" desaparecem e tudo fica atribuído a essa pessoa. Com 2, a opção de juntar todos chama-se "Os dois"; com 3 ou mais, "Todos".
+- A demonstração continua a criar 2 pessoas de exemplo. Para ficar com uma: remover os dados de demonstração e depois remover a pessoa a mais.

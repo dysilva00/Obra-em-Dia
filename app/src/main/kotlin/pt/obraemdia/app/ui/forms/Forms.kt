@@ -176,7 +176,7 @@ fun RecordTimeScreen(vm: AppViewModel, snapshot: Snapshot, initialJobId: String?
     val jobs = snapshot.summaries.filter { it.job.status in activeStatuses && !it.job.archived }
     val workers = snapshot.workers
     var jobId by rememberSaveable { mutableStateOf(initialJobId ?: jobs.firstOrNull { it.job.status == JobStatus.IN_PROGRESS }?.job?.id) }
-    var who by rememberSaveable { mutableStateOf<String?>(null) } // null = os dois
+    var who by rememberSaveable { mutableStateOf<String?>(null) } // null = todas as pessoas ativas
     var date by rememberSaveable { mutableStateOf(vm.today) }
     var hours by rememberSaveable { mutableStateOf("8") }
     var mins by rememberSaveable { mutableStateOf("0") }
@@ -196,10 +196,12 @@ fun RecordTimeScreen(vm: AppViewModel, snapshot: Snapshot, initialJobId: String?
 
     FormColumn {
         Picker("Obra", jobs, jobs.firstOrNull { it.job.id == jobId }, { it.job.title }, { jobId = it.job.id })
-        ChoiceChips("Quem", listOf<String?>(null) + workers.map { it.id }, who, { id -> id?.let(snapshot::workerName) ?: "Os dois" }) { who = it }
+        if (workers.size > 1) {
+            ChoiceChips("Quem", listOf<String?>(null) + workers.map { it.id }, who, { id -> id?.let(snapshot::workerName) ?: snapshot.everyoneLabel }) { who = it }
+        }
         DateField("Dia", date, vm.today) { date = it }
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("Duração (por pessoa)", style = MaterialTheme.typography.labelLarge)
+            Text(if (workers.size > 1) "Duração (por pessoa)" else "Duração", style = MaterialTheme.typography.labelLarge)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 OutlinedTextField(
                     hours, { hours = it.filter(Char::isDigit).take(2) }, label = { Text("Horas") }, singleLine = true,

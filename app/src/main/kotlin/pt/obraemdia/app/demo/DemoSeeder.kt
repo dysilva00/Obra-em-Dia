@@ -104,7 +104,7 @@ private const val DEMO_ONLY_PURCHASES = """
 """
 
 /**
- * Primeiro arranque: cria as duas pessoas com nomes e taxas PROVISÓRIOS (a confirmar, spec §20)
+ * Primeiro arranque: cria duas pessoas de exemplo (o número é configurável em Definições) com nomes e taxas PROVISÓRIOS (a confirmar, spec §20)
  * e um conjunto de dados fictícios marcado com isDemo, relativo à data de hoje.
  */
 class DemoSeeder(

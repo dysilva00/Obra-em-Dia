@@ -85,7 +85,7 @@ fun BookingScreen(vm: AppViewModel, snapshot: Snapshot, initialJobId: String?, i
     val hours = snapshot.workHours
     val jobs = snapshot.summaries.filter { it.job.status !in setOf(JobStatus.CANCELLED, JobStatus.COMPLETED) && !it.job.archived }
     var jobId by rememberSaveable { mutableStateOf(initialJobId) }
-    var who by rememberSaveable { mutableStateOf<String?>(null) } // null = os dois
+    var who by rememberSaveable { mutableStateOf<String?>(null) } // null = todas as pessoas ativas
     // Datas guardadas como texto ISO para sobreviver à rotação do ecrã.
     var daysText by rememberSaveable { mutableStateOf((initialDate ?: vm.today.plusDays(1)).toString()) }
     var period by rememberSaveable { mutableStateOf(Period.FULL_DAY) }
@@ -135,10 +135,10 @@ fun BookingScreen(vm: AppViewModel, snapshot: Snapshot, initialJobId: String?, i
     ) {
         Picker("Obra", jobs, job, { it.job.title }, { jobId = it.job.id; serverConflicts = emptyList() })
 
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        if (snapshot.workers.size > 1) Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text("Quem", style = MaterialTheme.typography.labelLarge)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(who == null, { who = null; serverConflicts = emptyList() }, { Text("Os dois") }, Modifier.heightIn(min = 48.dp))
+                FilterChip(who == null, { who = null; serverConflicts = emptyList() }, { Text(snapshot.everyoneLabel) }, Modifier.heightIn(min = 48.dp))
                 snapshot.workers.forEach { w ->
                     FilterChip(who == w.id, { who = w.id; serverConflicts = emptyList() }, { Text(w.name) }, Modifier.heightIn(min = 48.dp))
                 }

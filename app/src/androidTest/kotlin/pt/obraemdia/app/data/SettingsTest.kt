@@ -9,8 +9,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -72,6 +72,28 @@ class SettingsTest {
         assertEquals("Joaquim", snap.workerName("w1"))
         assertEquals(listOf(2500L, 3000L), snap.timeEntries.sortedBy { it.date }.map { it.saleRateCents })
         assertEquals(Money.euros(55), snap.summary(a)!!.saleNet)
+    }
+
+    @Test
+    fun numero_de_pessoas_configuravel() = runTest {
+        val a = job()
+        repo.recordTime(NewTimeEntries(newId(), a, listOf("w1"), day.minusDays(30), 60, TimeEntryKind.WORK, true, null))
+        // Não se pode remover a única pessoa.
+        try { settings.removeWorker("w1"); fail("Devia ficar pelo menos uma pessoa") } catch (_: IllegalArgumentException) {}
+
+        val b = settings.addWorker("Maria", HourlyRate.euros(20), HourlyRate.euros(12))
+        assertEquals(2, repo.snapshot.first().workers.size)
+        // Com marcações futuras não se remove.
+        repo.createBooking(NewBooking(newId(), a, setOf(b), listOf(WorkHours().slotFor(day, DayPart.FULL_DAY)), BookingFirmness.FIRM, null, null))
+        try { settings.removeWorker(b); fail("Tem marcações futuras") } catch (e: IllegalArgumentException) { assertTrue(e.message!!.contains("marcação")) }
+
+        // Uma pessoa sem marcações futuras sai das escolhas, mas o nome mantém-se nos registos antigos.
+        settings.removeWorker("w1")
+        val snap = repo.snapshot.first()
+        assertEquals(listOf("Maria"), snap.workers.map { it.name })
+        assertEquals("Pessoa 1", snap.workerName("w1"))
+        assertEquals(1, snap.timeEntries.size)
+
     }
 
     @Test
