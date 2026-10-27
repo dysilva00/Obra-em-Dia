@@ -541,3 +541,22 @@ data class IssuedInvoiceEntity(
     val deleteReason: String? = null,
     val isDemo: Boolean = false,
 )
+
+/**
+ * Cronómetro a contar. A chave é a pessoa: no máximo um ativo por pessoa. Iniciar para várias
+ * pessoas cria uma linha por pessoa com o mesmo [groupId]; parar regista as horas do grupo.
+ */
+@Entity(
+    tableName = "active_timers",
+    foreignKeys = [
+        ForeignKey(WorkerEntity::class, ["id"], ["workerId"], onDelete = ForeignKey.RESTRICT),
+        ForeignKey(JobEntity::class, ["id"], ["jobId"], onDelete = ForeignKey.RESTRICT),
+    ],
+    indices = [Index("groupId"), Index("jobId")],
+)
+data class ActiveTimerEntity(
+    @PrimaryKey val workerId: String,
+    val groupId: String,
+    val jobId: String,
+    val startedAt: Long,
+)

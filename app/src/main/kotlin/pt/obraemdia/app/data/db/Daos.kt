@@ -153,6 +153,9 @@ interface TimeEntryDao {
     @Query("SELECT * FROM time_entries WHERE deletedAt IS NULL")
     fun observeAll(): Flow<List<TimeEntryEntity>>
 
+    @Query("SELECT * FROM time_entries WHERE deletedAt IS NULL AND date = :date AND workerId IN (:workerIds)")
+    suspend fun onDay(date: java.time.LocalDate, workerIds: List<String>): List<TimeEntryEntity>
+
     @Query("SELECT * FROM time_entries WHERE deletedAt IS NULL AND jobId = :jobId AND workerId = :workerId AND date = :date")
     suspend fun findSameDay(jobId: String, workerId: String, date: java.time.LocalDate): List<TimeEntryEntity>
 }
@@ -397,4 +400,21 @@ interface IssuedInvoiceDao {
         """,
     )
     suspend fun findDuplicate(nif: String, type: String, number: String, atcud: String?): IssuedInvoiceEntity?
+}
+
+@Dao
+interface TimerDao {
+    @Query("SELECT * FROM active_timers ORDER BY startedAt")
+    fun observeAll(): Flow<List<ActiveTimerEntity>>
+
+    @Query("SELECT * FROM active_timers WHERE workerId IN (:workerIds)")
+    suspend fun forWorkers(workerIds: List<String>): List<ActiveTimerEntity>
+
+    @Query("SELECT * FROM active_timers WHERE groupId = :groupId")
+    suspend fun group(groupId: String): List<ActiveTimerEntity>
+
+    @Insert suspend fun insertAll(timers: List<ActiveTimerEntity>)
+
+    @Query("DELETE FROM active_timers WHERE groupId = :groupId")
+    suspend fun deleteGroup(groupId: String): Int
 }

@@ -142,6 +142,19 @@ class AppViewModel(private val container: AppContainer) : ViewModel() {
 
     suspend fun createJob(input: NewJob): Result<String> = runCatching { repo.createJob(input) }
 
+    val timers: StateFlow<List<pt.obraemdia.app.data.db.ActiveTimerEntity>> =
+        repo.timers.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    suspend fun startTimer(jobId: String, workerIds: List<String>): SaveResult = save {
+        repo.startTimer(jobId, workerIds)
+        "Cronómetro iniciado"
+    }
+
+    suspend fun discardTimer(groupId: String): SaveResult = save {
+        repo.discardTimer(groupId)
+        "Cronómetro descartado"
+    }
+
     suspend fun recordTime(input: NewTimeEntries): SaveResult = save {
         when (repo.recordTime(input)) {
             SaveOutcome.Saved -> "Horas registadas"

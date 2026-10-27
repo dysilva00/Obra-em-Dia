@@ -1,5 +1,7 @@
 package pt.obraemdia.app.data.repo
 
+import pt.obraemdia.app.data.db.ActiveTimerEntity
+
 import androidx.room.immediateTransaction
 import androidx.room.useWriterConnection
 import kotlinx.coroutines.flow.Flow
@@ -61,6 +63,7 @@ data class NewJob(
     val priority: Priority,
     val urgentReason: String?,
     val description: String?,
+    val clientPhone: String? = null,
 )
 
 data class NewTimeEntries(
@@ -74,7 +77,18 @@ data class NewTimeEntries(
     val kind: TimeEntryKind,
     val billable: Boolean,
     val note: String?,
+    /** Início e fim (opcionais): quando existem, a duração é fim − início − pausa. */
+    val start: java.time.LocalTime? = null,
+    val end: java.time.LocalTime? = null,
+    val breakMinutes: Int = 0,
+    /** Gravar apesar dos avisos de [HourChecks] (o utilizador confirmou). */
+    val confirmWarnings: Boolean = false,
+    /** Horas vindas de um cronómetro: o cronómetro é parado na mesma transação. */
+    val timerGroupId: String? = null,
 )
+
+/** Os avisos de [HourChecks] precisam de confirmação antes de gravar. */
+class HourWarningsException(val warnings: List<String>) : IllegalArgumentException(warnings.joinToString("; "))
 
 data class NewPayment(
     val operationId: String,
@@ -176,7 +190,8 @@ class ObraRepository(private val db: AppDatabase, private val clock: () -> Long 
         val jobId = newId()
         transaction {
             val clientId = input.clientName?.takeIf { it.isNotBlank() }?.let { name ->
-                newId().also { db.clientDao().insert(ClientEntity(it, name.trim(), createdAt = now, updatedAt = now)) }
+                val phone = input.clientPhone?.trim()?.takeIf { it.isNotEmpty() }
+                newId().also { db.clientDao().insert(ClientEntity(it, name.trim(), phone = phone, createdAt = now, updatedAt = now)) }
             }
             val siteId = input.address?.takeIf { it.isNotBlank() }?.let { address ->
                 newId().also {
@@ -208,12 +223,26 @@ class ObraRepository(private val db: AppDatabase, private val clock: () -> Long 
 
     /** Copia as taxas habituais de cada pessoa para o registo: o histórico não muda se a taxa mudar. */
     suspend fun recordTime(input: NewTimeEntries): SaveOutcome {
-        require(input.minutes > 0) { "A duração tem de ser positiva" }
         require(input.workerIds.isNotEmpty()) { "Escolha pelo menos uma pessoa" }
+        require((input.start == null) == (input.end == null)) { "Indique o início e o fim" }
+        val minutes = if (input.start != null && input.end != null) {
+            requireNotNull(HourChecks.minutesBetween(input.start, input.end, input.breakMinutes)) { "O fim tem de ser depois do início, descontada a pausa" }
+        } else {
+            input.minutes
+        }
+        require(minutes > 0) { "A duração tem de ser positiva" }
+        require(minutes <= HourChecks.MAX_DAY_MINUTES) { "Mais de 16 horas num registo: confirme a duração" }
         val now = clock()
         return transaction {
             ensureOpen(input.jobId)
             val workers = db.workerDao().getAll().associateBy { it.id }
+            if (!input.confirmWarnings) {
+                val warnings = HourChecks.warnings(
+                    db.timeEntryDao().onDay(input.date, input.workerIds), input.operationId, input.workerIds,
+                    input.date, minutes, input.start, input.end,
+                ) { id -> workers[id]?.name ?: "?" }
+                if (warnings.isNotEmpty()) throw HourWarningsException(warnings)
+            }
             val entries = input.workerIds.map { workerId ->
                 val worker = requireNotNull(workers[workerId]) { "Pessoa desconhecida" }
                 TimeEntryEntity(
@@ -222,7 +251,10 @@ class ObraRepository(private val db: AppDatabase, private val clock: () -> Long 
                     jobId = input.jobId,
                     workerId = workerId,
                     date = input.date,
-                    minutes = input.minutes,
+                    startMs = input.start?.let { HourChecks.instant(input.date, it) },
+                    endMs = input.end?.let { HourChecks.instant(input.date, it) },
+                    breakMinutes = if (input.start != null) input.breakMinutes else 0,
+                    minutes = minutes,
                     kind = input.kind,
                     billable = input.billable,
                     saleRateCents = worker.defaultSaleRateCents,
@@ -233,8 +265,10 @@ class ObraRepository(private val db: AppDatabase, private val clock: () -> Long 
                 )
             }
             val inserted = db.timeEntryDao().insertAll(entries).count { it != -1L }
+            input.timerGroupId?.let { db.timerDao().deleteGroup(it) }
             if (inserted == 0) return@transaction SaveOutcome.Duplicate
-            audit("time_entry", input.operationId, "create", "${entries.size} registo(s), ${input.minutes} min em ${input.date}")
+            val span = if (input.start != null) " (${input.start}–${input.end}, pausa ${input.breakMinutes} min)" else ""
+            audit("time_entry", input.operationId, "create", "${entries.size} registo(s), $minutes min em ${input.date}$span")
             SaveOutcome.Saved
         }
     }
@@ -464,6 +498,28 @@ class ObraRepository(private val db: AppDatabase, private val clock: () -> Long 
     }
 
     /** Falha se a obra estiver encerrada (última revisão sem reabertura). */
+    /** Inicia um cronómetro por pessoa (no máximo um ativo por pessoa). Devolve o id do grupo. */
+    suspend fun startTimer(jobId: String, workerIds: List<String>): String {
+        require(workerIds.isNotEmpty()) { "Escolha pelo menos uma pessoa" }
+        val now = clock()
+        return transaction {
+            ensureOpen(jobId)
+            val running = db.timerDao().forWorkers(workerIds)
+            if (running.isNotEmpty()) {
+                val names = running.mapNotNull { db.workerDao().get(it.workerId)?.name }.joinToString(" e ")
+                throw IllegalArgumentException("$names já tem um cronómetro a contar: pare-o primeiro")
+            }
+            val group = newId()
+            db.timerDao().insertAll(workerIds.map { ActiveTimerEntity(it, group, jobId, now) })
+            group
+        }
+    }
+
+    /** Descarta um cronómetro sem registar horas. */
+    suspend fun discardTimer(groupId: String) = transaction { db.timerDao().deleteGroup(groupId) }
+
+    val timers = db.timerDao().observeAll()
+
     suspend fun ensureOpen(jobId: String?) {
         if (jobId == null) return
         val latest = db.closureDao().latest(jobId) ?: return

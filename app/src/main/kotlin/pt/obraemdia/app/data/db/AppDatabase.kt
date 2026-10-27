@@ -17,11 +17,11 @@ class Converters {
 }
 
 /** Versão do esquema; tem de acompanhar @Database(version) (usada para validar backups). */
-const val SCHEMA_VERSION = 8
+const val SCHEMA_VERSION = 9
 
 @Database(
     version = SCHEMA_VERSION,
-    autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3), AutoMigration(from = 3, to = 4), AutoMigration(from = 4, to = 5), AutoMigration(from = 5, to = 6), AutoMigration(from = 6, to = 7), AutoMigration(from = 7, to = 8)],
+    autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3), AutoMigration(from = 3, to = 4), AutoMigration(from = 4, to = 5), AutoMigration(from = 5, to = 6), AutoMigration(from = 6, to = 7), AutoMigration(from = 7, to = 8), AutoMigration(from = 8, to = 9)],
     entities = [
         WorkerEntity::class,
         ClientEntity::class,
@@ -44,6 +44,7 @@ const val SCHEMA_VERSION = 8
         NoteEntity::class,
         ChecklistItemEntity::class,
         IssuedInvoiceEntity::class,
+        ActiveTimerEntity::class,
     ],
 )
 @TypeConverters(Converters::class)
@@ -62,6 +63,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun agreementDao(): AgreementDao
     abstract fun mediaDao(): MediaDao
     abstract fun invoiceDao(): IssuedInvoiceDao
+    abstract fun timerDao(): TimerDao
     abstract fun demoDao(): pt.obraemdia.app.demo.DemoDao
 
     companion object {

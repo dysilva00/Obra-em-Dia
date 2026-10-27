@@ -72,7 +72,7 @@ import kotlin.reflect.KClass
 @Serializable data object AccountsRoute
 @Serializable data class JobDetailRoute(val jobId: String)
 @Serializable data object NewJobRoute
-@Serializable data class RecordTimeRoute(val jobId: String? = null)
+@Serializable data class RecordTimeRoute(val jobId: String? = null, val timerGroupId: String? = null)
 @Serializable data class RecordPaymentRoute(val jobId: String? = null)
 @Serializable data class BookingRoute(val jobId: String? = null, val date: String? = null)
 @Serializable data class ExpenseRoute(val jobId: String? = null)
@@ -125,6 +125,7 @@ fun AppNavigation() {
     val alerts by vm.alerts.collectAsStateWithLifecycle()
     val mediaCounts by vm.mediaCounts.collectAsStateWithLifecycle()
     val issuedInvoices by vm.issuedInvoices.collectAsStateWithLifecycle()
+    val timers by vm.timers.collectAsStateWithLifecycle()
 
     val nav = rememberNavController()
     val backStack by nav.currentBackStackEntryAsState()
@@ -209,6 +210,9 @@ fun AppNavigation() {
                     alerts = alerts,
                     onForecast = { nav.navigate(ForecastRoute) },
                     onBackup = { nav.navigate(BackupRoute) },
+                    timers = timers,
+                    onStopTimer = { group -> nav.navigate(RecordTimeRoute(timerGroupId = group)) },
+                    onDiscardTimer = { group -> scope.launch { message(vm.discardTimer(group).message) } },
                 )
             }
             composable<AgendaRoute> {
@@ -262,7 +266,10 @@ fun AppNavigation() {
                     onError = message,
                 )
             }
-            composable<RecordTimeRoute> { entry -> RecordTimeScreen(vm, snap, entry.toRoute<RecordTimeRoute>().jobId, finished) }
+            composable<RecordTimeRoute> { entry ->
+                val route = entry.toRoute<RecordTimeRoute>()
+                RecordTimeScreen(vm, snap, route.jobId, route.timerGroupId, timers, finished)
+            }
             composable<RecordPaymentRoute> { entry -> RecordPaymentScreen(vm, snap, entry.toRoute<RecordPaymentRoute>().jobId, finished) }
             composable<EditJobRoute> { entry ->
                 val id = entry.toRoute<EditJobRoute>().jobId

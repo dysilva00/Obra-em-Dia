@@ -137,3 +137,16 @@ Registo das escolhas reversíveis tomadas durante o desenvolvimento. A especific
 - **Recuperação:** um journal regista a fase da troca. Se o processo morrer a meio, no arranque seguinte os dados anteriores são repostos. Depois de um restauro bem-sucedido, os dados anteriores ficam em `noBackupFilesDir/backup/rollback` até ao restauro seguinte.
 - **Data da última cópia:** fica nas definições (`last_backup_at`). Um restauro grava nela a data da cópia restaurada. O alerta aparece quando há obras reais e não há cópia ou esta tem mais de 30 dias. Também entra no resumo diário, mas só é notificado uma vez, até o texto mudar.
 - **Sem cópia automática para a nuvem:** o `allowBackup` continua desligado. Guardar o ficheiro fora do telemóvel (Drive, e-mail, computador) é um passo do utilizador e a app lembra-o disso.
+
+## Registo de horas
+
+- **Duração ou início/fim/pausa:** quando há início e fim, a duração é sempre calculada (fim − início − pausa) e guardam-se os três valores. O fim tem de ser no mesmo dia e depois do início. As horas aceitam "8", "8:30", "8h30" ou "0830". Não há arredondamentos automáticos.
+- **Avisos, não bloqueios:** a sobreposição com outro registo com horário da mesma pessoa, ou mais de 16 h no dia, pedem confirmação ("Está certo, gravar mesmo assim"). O repositório volta a verificar na gravação. Os registos da mesma operação são ignorados, para que repetir uma gravação não se acuse a si própria.
+- **Repetir último:** preenche o formulário com o último registo gravado (todas as pessoas dessa operação) e não grava nada sozinho. Substitui o "copiar dia anterior" da spec sem criar registos às cegas.
+- **Cronómetro:** tabela `active_timers` (esquema v9) com a pessoa como chave, o que impõe "no máximo um por pessoa". Iniciar para várias pessoas cria um grupo. Parar não grava diretamente: abre o formulário com o horário preenchido, para acertar a pausa, e o cronómetro é apagado na mesma transação em que as horas são gravadas. Também se pode descartar. Uma pessoa com o cronómetro a contar não pode ser removida.
+
+## Contactos
+
+- **Seletor de telefone do sistema** (`ACTION_PICK` em `Phone.CONTENT_TYPE`), sem a permissão `READ_CONTACTS`: o Android só dá acesso à entrada escolhida. No Android 17 o sistema mostra automaticamente o novo seletor privado.
+- **Só o nome e o telefone** são copiados. O cliente da app é independente do contacto: alterar ou apagar o contacto não mexe no cliente nem no histórico. Em Editar obra, se já existir um cliente com o mesmo nome, é esse o escolhido.
+- Sem seletor, ou se a leitura falhar, aparece uma explicação e os campos continuam a poder ser preenchidos à mão.

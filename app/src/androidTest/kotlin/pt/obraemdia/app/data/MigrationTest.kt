@@ -58,6 +58,17 @@ class MigrationTest {
     }
 
     @Test
+    fun v8_para_v9_cria_cronometros() {
+        helper.createDatabase(8).close()
+        helper.runMigrationsAndValidate(9).use { db ->
+            db.prepare("SELECT COUNT(*) FROM active_timers").use { st ->
+                assertTrue(st.step())
+                assertEquals(0L, st.getLong(0))
+            }
+        }
+    }
+
+    @Test
     fun v7_para_v8_cria_faturas_emitidas() {
         helper.createDatabase(7).close()
         helper.runMigrationsAndValidate(8).use { db ->

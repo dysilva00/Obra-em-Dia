@@ -81,6 +81,9 @@ fun HomeScreen(
     alerts: List<Alert>,
     onForecast: () -> Unit,
     onBackup: () -> Unit,
+    timers: List<pt.obraemdia.app.data.db.ActiveTimerEntity> = emptyList(),
+    onStopTimer: (String) -> Unit = {},
+    onDiscardTimer: (String) -> Unit = {},
 ) {
     var month by rememberSaveable { mutableStateOf(YearMonth.from(today)) }
     val monthMovements = snapshot.movementsIn(month)
@@ -98,6 +101,8 @@ fun HomeScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier.fillMaxWidth(),
     ) {
+        if (timers.isNotEmpty()) item { RunningTimers(timers, snapshot, onStopTimer, onDiscardTimer) }
+
         item {
             HeroBalance(
                 balance = snapshot.accumulatedBalance(today),

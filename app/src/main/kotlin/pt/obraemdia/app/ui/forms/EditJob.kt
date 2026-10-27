@@ -103,6 +103,15 @@ fun EditJobScreen(vm: AppViewModel, summary: JobSummary, clients: List<ClientEnt
             newClient, { newClient = it }, label = { Text("…ou novo cliente") }, singleLine = true,
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words), modifier = Modifier.fillMaxWidth(),
         )
+        pt.obraemdia.app.ui.components.ContactPickerButton(
+            onPicked = { picked ->
+                // Se o cliente já existe na app (mesmo nome), usa-se esse em vez de criar outro.
+                val existing = clients.firstOrNull { it.name.equals(picked.name, ignoreCase = true) }
+                if (existing != null) { clientId = existing.id; newClient = "" } else newClient = picked.name
+                phone = picked.phone ?: existing?.phone.orEmpty()
+            },
+            onUnavailable = { error = it },
+        )
         if (clientId != null || newClient.isNotBlank()) {
             OutlinedTextField(
                 phone, { phone = it }, label = { Text("Telefone do cliente (opcional)") }, singleLine = true,

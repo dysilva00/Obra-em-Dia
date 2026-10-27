@@ -51,6 +51,7 @@ interface DemoDao {
     // Tudo o que está ligado a uma obra fictícia é fictício e sai com ela. Registos de obras reais nunca são tocados.
     @Query("DELETE FROM schedule_entries WHERE isDemo = 1 OR jobId IN (SELECT id FROM jobs WHERE isDemo = 1)") suspend fun deleteSchedule()
     @Query("DELETE FROM time_off WHERE isDemo = 1") suspend fun deleteTimeOff()
+    @Query("DELETE FROM active_timers WHERE jobId IN (SELECT id FROM jobs WHERE isDemo = 1)") suspend fun deleteTimers()
     @Query("DELETE FROM issued_invoices WHERE isDemo = 1 OR jobId IN (SELECT id FROM jobs WHERE isDemo = 1)") suspend fun deleteIssuedInvoices()
     @Query("DELETE FROM attachments WHERE isDemo = 1 OR jobId IN (SELECT id FROM jobs WHERE isDemo = 1)") suspend fun deleteAttachments()
     @Query("DELETE FROM notes WHERE isDemo = 1 OR jobId IN (SELECT id FROM jobs WHERE isDemo = 1)") suspend fun deleteNotes()
@@ -134,7 +135,7 @@ class DemoSeeder(
         val paths = db.mediaDao().demoAttachmentPaths()
         // Ordem inversa das dependências (chaves estrangeiras RESTRICT).
         d.deleteIssuedInvoices(); d.deleteAttachments(); d.deleteNotes(); d.deleteChecklist()
-        d.deleteSchedule(); d.deleteTimeOff(); d.deleteTimeEntries(); d.deleteCash(); d.deletePurchases(); d.deleteDemoAllocations()
+        d.deleteSchedule(); d.deleteTimeOff(); d.deleteTimers(); d.deleteTimeEntries(); d.deleteCash(); d.deletePurchases(); d.deleteDemoAllocations()
         d.deleteCharges(); d.deleteRevisions(); d.deleteInstallments(); d.deleteClosures(); d.deleteJobs()
         d.deleteSites(); d.keepUsedSites(); d.deleteClients(); d.keepUsedClients()
         db.settingsDao().put(SettingEntity(Settings.OPENING_BALANCE_CENTS, "0"))

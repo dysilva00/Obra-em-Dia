@@ -111,6 +111,10 @@ fun BackupScreen(vm: AppViewModel, snapshot: Snapshot, onMessage: (String) -> Un
         Modifier.verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
+        WarningBox(
+            "Os dados só existem neste telemóvel. Desinstalar a app, \"Limpar armazenamento\" nas definições do Android, " +
+                "ou perder/avariar o telemóvel apaga tudo, incluindo as fotos. Só uma cópia guardada fora do telemóvel os recupera.",
+        )
         SectionCard("Guardar cópia", icon = Icons.Filled.CloudUpload, caption = "Um ficheiro .zip com todos os dados, fotos e anexos") {
             Text(
                 if (lastBackup == null) "Ainda não foi feita nenhuma cópia." else "Última cópia: ${lastBackup.stampLabel()}",

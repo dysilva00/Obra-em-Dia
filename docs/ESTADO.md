@@ -5,7 +5,7 @@ Legenda: ✅ concluído e verificado · 🟡 parcial · ⬜ pendente
 ## Verificação
 
 - `gradlew :domain:test`: 46 testes de regras (previsão de caixa, dinheiro, IVA, repartição, custos e IVA recuperável, tipos de documento, NIF, agenda/conflitos, sugestão de dias livres, cobrança, saldos, estados, encerramento).
-- `gradlew connectedDebugAndroidTest`: 75 testes no emulador (idempotência, taxas históricas, transações, chaves estrangeiras, remoção de demonstração, agendamento com conflitos, estados, cancelamento, gastos/repartições/duplicados/crédito/notas de crédito, estornos, correção e anulação de horas, anulação de compras, encerramento/bloqueio/reabertura/revisões, acordo/extras/materiais/edição, definições/indisponibilidades, previsão e alertas, PDFs válidos e resumo do cliente sem dados internos, fotos/notas/checklist, lembretes, migrações v1→…→v8, faturas emitidas, leitura de QR em PDF, backup/restauro incluindo pacotes corrompidos, zip slip, versão mais recente e restauro interrompido).
+- `gradlew connectedDebugAndroidTest`: 81 testes no emulador (idempotência, taxas históricas, transações, chaves estrangeiras, remoção de demonstração, agendamento com conflitos, estados, cancelamento, gastos/repartições/duplicados/crédito/notas de crédito, estornos, correção e anulação de horas, anulação de compras, encerramento/bloqueio/reabertura/revisões, acordo/extras/materiais/edição, definições/indisponibilidades, previsão e alertas, PDFs válidos e resumo do cliente sem dados internos, fotos/notas/checklist, lembretes, migrações v1→…→v9, horas com início/fim, sobreposições e cronómetro, faturas emitidas, leitura de QR em PDF, backup/restauro incluindo pacotes corrompidos, zip slip, versão mais recente e restauro interrompido).
   **Atenção:** este comando desinstala a app no fim e apaga os dados do emulador.
 - Verificado manualmente no emulador (API 37): navegação, letra a 130 %, registo de pagamento com duplo toque (gravado uma única vez) e persistência depois de fechar a app à força.
 
@@ -42,7 +42,12 @@ Legenda: ✅ concluído e verificado · 🟡 parcial · ⬜ pendente
 - ✅ Ícone próprio da app (adaptativo, com versão monocromática para ícones temáticos).
 - ✅ Design: Material 3 Expressive (beta) e Plus Jakarta Sans.
 - ⬜ Prova no aparelho real: leitura de QR AT
-- ⬜ Prova no aparelho real: seletor de contactos
+- ✅ Registar horas por início, fim e pausa (ou só duração); "Repetir último" preenche obra, pessoas, horário e tipo do último registo.
+- ✅ Aviso quando as horas da mesma pessoa se sobrepõem ou o dia passa das 16 h; só grava depois de confirmar.
+- ✅ Cronómetro (um por pessoa, também para "Os dois"): começa em Registar horas, fica em destaque no Início e "Parar e registar" abre o formulário preenchido. Sobrevive a fechar a app.
+- ✅ Cliente a partir dos contactos (Nova obra e Editar obra): copia só o nome e o telefone, sem pedir permissão. No emulador com Android 17 abre o novo seletor privado de contactos.
+- ✅ Aviso no ecrã da cópia de segurança de que desinstalar ou limpar os dados apaga tudo.
+- ⬜ Prova no aparelho real: seletor de contactos (Android 15)
 - ✅ Cópia de segurança (Definições → Cópia de segurança): exporta um .zip (base + fotos/anexos + manifesto com SHA-256) para onde se escolher; restauro validado antes de mexer nos dados e aplicado no arranque, com recuperação se for interrompido. Alerta no Início (e no resumo diário) quando não há cópia ou tem mais de 30 dias, só com dados reais. Ciclo exportar → apagar → restaurar verificado no emulador.
 - ⬜ Prova no aparelho real: restaurar a cópia num segundo telemóvel
 

@@ -65,6 +65,7 @@ class BusinessSettings(private val db: AppDatabase, private val repo: ObraReposi
         require(db.workerDao().getAll().size > 1) { "Tem de ficar pelo menos uma pessoa" }
         val future = db.workerDao().futureBookings(id, clock())
         require(future == 0) { "${w.name} tem $future marcação(ões) a partir de hoje: mude-as ou remova-as primeiro na Agenda" }
+        require(db.timerDao().forWorkers(listOf(id)).isEmpty()) { "${w.name} tem um cronómetro a contar: pare-o ou descarte-o primeiro no Início" }
         db.workerDao().upsert(w.copy(deletedAt = clock(), updatedAt = clock()))
         audit("worker", id, "delete", w.name)
     }
