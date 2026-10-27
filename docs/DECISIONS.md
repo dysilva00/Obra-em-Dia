@@ -127,3 +127,13 @@ Registo das escolhas reversíveis tomadas durante o desenvolvimento. A especific
 - **Remover = desativar** (`deletedAt`): a pessoa sai das escolhas, mas as horas, marcações e registos antigos mantêm o nome. Não se pode remover a última pessoa ativa, nem alguém com marcações a partir de hoje.
 - **Interface:** com 1 pessoa, os seletores "Quem" desaparecem e tudo fica atribuído a essa pessoa. Com 2, a opção de juntar todos chama-se "Os dois"; com 3 ou mais, "Todos".
 - A demonstração continua a criar 2 pessoas de exemplo. Para ficar com uma: remover os dados de demonstração e depois remover a pessoa a mais.
+
+## Cópia de segurança e restauro
+
+- **Formato:** um único `.zip` com `db/obra-em-dia.db`, a pasta `attachments/` e `manifest.json` (formato, versão do esquema, versão da app, data, contagens, tamanho e SHA-256 de cada ficheiro). Pensado para mudar de telemóvel e para servir de carga inicial num futuro servidor.
+- **Snapshot consistente:** `VACUUM INTO` com a ligação de escrita do Room reservada, por isso nada é gravado a meio da cópia. O ZIP é criado e verificado na pasta privada e só depois copiado para o destino escolhido (SAF). Se a cópia falhar, o ficheiro de destino é apagado.
+- **Validar antes de tocar:** o restauro copia e extrai para uma área separada, com limites de tamanho e de entradas e proteção contra caminhos fora da pasta (zip slip). Confere os checksums, recusa um esquema ou formato mais recente que a app, corre `integrity_check` e `foreign_key_check` e abre a base com o Room, o que aplica as migrações de versões antigas.
+- **Aplicado no arranque:** confirmado o restauro, a app reinicia e a troca é feita antes de a base abrir. Assim nunca se fecha a base debaixo de ecrãs ou tarefas que a estejam a usar.
+- **Recuperação:** um journal regista a fase da troca. Se o processo morrer a meio, no arranque seguinte os dados anteriores são repostos. Depois de um restauro bem-sucedido, os dados anteriores ficam em `noBackupFilesDir/backup/rollback` até ao restauro seguinte.
+- **Data da última cópia:** fica nas definições (`last_backup_at`). Um restauro grava nela a data da cópia restaurada. O alerta aparece quando há obras reais e não há cópia ou esta tem mais de 30 dias. Também entra no resumo diário, mas só é notificado uma vez, até o texto mudar.
+- **Sem cópia automática para a nuvem:** o `allowBackup` continua desligado. Guardar o ficheiro fora do telemóvel (Drive, e-mail, computador) é um passo do utilizador e a app lembra-o disso.

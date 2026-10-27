@@ -198,6 +198,8 @@ object Settings {
     const val MORNING_END = "morning_end"
     const val AFTERNOON_START = "afternoon_start"
     const val AFTERNOON_END = "afternoon_end"
+    /** Epoch millis da última cópia de segurança completa exportada com sucesso. */
+    const val LAST_BACKUP_AT = "last_backup_at"
 
     /** Horário configurado; valores em falta ou inválidos usam o horário provisório. */
     fun workHours(map: Map<String, String>): WorkHours {

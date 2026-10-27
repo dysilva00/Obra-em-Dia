@@ -80,6 +80,7 @@ fun HomeScreen(
     onAddExpense: () -> Unit,
     alerts: List<Alert>,
     onForecast: () -> Unit,
+    onBackup: () -> Unit,
 ) {
     var month by rememberSaveable { mutableStateOf(YearMonth.from(today)) }
     val monthMovements = snapshot.movementsIn(month)
@@ -117,8 +118,8 @@ fun HomeScreen(
                 SectionCard("Alertas", caption = "${alerts.size} a ver", icon = Icons.Filled.NotificationsActive) {
                     alerts.take(6).forEach { a ->
                         TextButton(
-                            onClick = { a.jobId?.let(onOpenJob) },
-                            enabled = a.jobId != null,
+                            onClick = { if (a.kind == AlertKind.BACKUP) onBackup() else a.jobId?.let(onOpenJob) },
+                            enabled = a.jobId != null || a.kind == AlertKind.BACKUP,
                             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {

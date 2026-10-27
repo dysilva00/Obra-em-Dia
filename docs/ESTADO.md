@@ -5,7 +5,7 @@ Legenda: ✅ concluído e verificado · 🟡 parcial · ⬜ pendente
 ## Verificação
 
 - `gradlew :domain:test`: 46 testes de regras (previsão de caixa, dinheiro, IVA, repartição, custos e IVA recuperável, tipos de documento, NIF, agenda/conflitos, sugestão de dias livres, cobrança, saldos, estados, encerramento).
-- `gradlew connectedDebugAndroidTest`: 60 testes no emulador (idempotência, taxas históricas, transações, chaves estrangeiras, remoção de demonstração, agendamento com conflitos, estados, cancelamento, gastos/repartições/duplicados/crédito/notas de crédito, estornos, correção e anulação de horas, anulação de compras, encerramento/bloqueio/reabertura/revisões, acordo/extras/materiais/edição, definições/indisponibilidades, previsão e alertas, PDFs válidos e resumo do cliente sem dados internos, fotos/notas/checklist, lembretes, migrações v1→…→v7).
+- `gradlew connectedDebugAndroidTest`: 75 testes no emulador (idempotência, taxas históricas, transações, chaves estrangeiras, remoção de demonstração, agendamento com conflitos, estados, cancelamento, gastos/repartições/duplicados/crédito/notas de crédito, estornos, correção e anulação de horas, anulação de compras, encerramento/bloqueio/reabertura/revisões, acordo/extras/materiais/edição, definições/indisponibilidades, previsão e alertas, PDFs válidos e resumo do cliente sem dados internos, fotos/notas/checklist, lembretes, migrações v1→…→v8, faturas emitidas, leitura de QR em PDF, backup/restauro incluindo pacotes corrompidos, zip slip, versão mais recente e restauro interrompido).
   **Atenção:** este comando desinstala a app no fim e apaga os dados do emulador.
 - Verificado manualmente no emulador (API 37): navegação, letra a 130 %, registo de pagamento com duplo toque (gravado uma única vez) e persistência depois de fechar a app à força.
 
@@ -43,11 +43,12 @@ Legenda: ✅ concluído e verificado · 🟡 parcial · ⬜ pendente
 - ✅ Design: Material 3 Expressive (beta) e Plus Jakarta Sans.
 - ⬜ Prova no aparelho real: leitura de QR AT
 - ⬜ Prova no aparelho real: seletor de contactos
-- ⬜ Exportação via SAF e ciclo de backup/restauro com anexo
+- ✅ Cópia de segurança (Definições → Cópia de segurança): exporta um .zip (base + fotos/anexos + manifesto com SHA-256) para onde se escolher; restauro validado antes de mexer nos dados e aplicado no arranque, com recuperação se for interrompido. Alerta no Início (e no resumo diário) quando não há cópia ou tem mais de 30 dias, só com dados reais. Ciclo exportar → apagar → restaurar verificado no emulador.
+- ⬜ Prova no aparelho real: restaurar a cópia num segundo telemóvel
 
 ## Ainda simulado ("ainda não disponível nesta versão")
 
-Leitura de QR.
+Nada.
 
 ## Limitações conhecidas
 

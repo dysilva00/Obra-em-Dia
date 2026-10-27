@@ -82,6 +82,7 @@ import kotlin.reflect.KClass
 @Serializable data object ForecastRoute
 @Serializable data object InvoicesRoute
 @Serializable data object HistoryRoute
+@Serializable data object BackupRoute
 @Serializable data object QrScanRoute
 @Serializable data class JobNotesRoute(val jobId: String)
 
@@ -107,6 +108,7 @@ private fun NavDestination?.title(): String = when {
     hasRoute(ForecastRoute::class) -> "Projeções"
     hasRoute(InvoicesRoute::class) -> "Faturas emitidas"
     hasRoute(HistoryRoute::class) -> "Histórico de alterações"
+    hasRoute(BackupRoute::class) -> "Cópia de segurança"
     hasRoute(QrScanRoute::class) -> "Ler código QR"
     hasRoute(JobNotesRoute::class) -> "Notas, fotos e checklist"
     hasRoute(JobDetailRoute::class) -> "Obra"
@@ -141,6 +143,8 @@ fun AppNavigation() {
     val notReady: (String) -> Unit = { action -> message("$action — ainda não disponível nesta versão") }
     val openJob: (String) -> Unit = { id -> nav.navigate(JobDetailRoute(id)) }
     val finished: (String) -> Unit = { text -> nav.popBackStack(); message(text) }
+    // Resultado de um restauro aplicado no arranque.
+    androidx.compose.runtime.LaunchedEffect(Unit) { vm.restoreResult?.let { snackbar.showSnackbar(it, withDismissAction = true) } }
 
     Scaffold(
         topBar = {
@@ -204,6 +208,7 @@ fun AppNavigation() {
                     onAddExpense = { nav.navigate(ExpenseRoute()) },
                     alerts = alerts,
                     onForecast = { nav.navigate(ForecastRoute) },
+                    onBackup = { nav.navigate(BackupRoute) },
                 )
             }
             composable<AgendaRoute> {
@@ -265,6 +270,7 @@ fun AppNavigation() {
                 snap.summary(id)?.let { EditJobScreen(vm, it, clients, snap.isClosed(id), finished) }
             }
             composable<JobNotesRoute> { entry -> pt.obraemdia.app.ui.jobs.JobNotesScreen(vm.media, entry.toRoute<JobNotesRoute>().jobId, vm.today, message) }
+            composable<BackupRoute> { pt.obraemdia.app.ui.settings.BackupScreen(vm, snap, message) }
             composable<HistoryRoute> {
                 val events by vm.history.collectAsStateWithLifecycle()
                 pt.obraemdia.app.ui.settings.HistoryScreen(events)
@@ -289,7 +295,7 @@ fun AppNavigation() {
             composable<ForecastRoute> { ForecastScreen(vm, snap) }
             composable<SettingsRoute> {
                 val timeOff by vm.timeOff.collectAsStateWithLifecycle()
-                SettingsScreen(vm, snap, timeOff, message, onHistory = { nav.navigate(HistoryRoute) })
+                SettingsScreen(vm, snap, timeOff, message, onHistory = { nav.navigate(HistoryRoute) }, onBackup = { nav.navigate(BackupRoute) })
             }
             composable<ClosureRoute> { entry -> ClosureScreen(vm, snap, entry.toRoute<ClosureRoute>().jobId, message, finished) }
             composable<ExpenseRoute> { entry -> ExpenseScreen(vm, snap, entry.toRoute<ExpenseRoute>().jobId, onScan = { nav.navigate(QrScanRoute) }, onDone = finished) }

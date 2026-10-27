@@ -16,8 +16,11 @@ class Converters {
     @TypeConverter fun toDate(value: String?): LocalDate? = value?.let(LocalDate::parse)
 }
 
+/** Versão do esquema; tem de acompanhar @Database(version) (usada para validar backups). */
+const val SCHEMA_VERSION = 8
+
 @Database(
-    version = 8,
+    version = SCHEMA_VERSION,
     autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3), AutoMigration(from = 3, to = 4), AutoMigration(from = 4, to = 5), AutoMigration(from = 5, to = 6), AutoMigration(from = 6, to = 7), AutoMigration(from = 7, to = 8)],
     entities = [
         WorkerEntity::class,
@@ -68,8 +71,11 @@ abstract class AppDatabase : RoomDatabase() {
          * SQLite incluído na app (mesma versão em todos os aparelhos; permite VACUUM INTO no backup).
          * Sem fallbackToDestructiveMigration: uma migração em falta tem de falhar, nunca apagar dados.
          */
-        fun build(context: Context): AppDatabase =
-            Room.databaseBuilder<AppDatabase>(context, context.getDatabasePath(FILE_NAME).absolutePath)
+        fun build(context: Context): AppDatabase = build(context, context.getDatabasePath(FILE_NAME).absolutePath)
+
+        /** Abre (e migra, se preciso) uma base num caminho qualquer — usado para validar um backup antes de o restaurar. */
+        fun build(context: Context, path: String): AppDatabase =
+            Room.databaseBuilder<AppDatabase>(context, path)
                 .setDriver(BundledSQLiteDriver())
                 .setQueryCoroutineContext(Dispatchers.IO)
                 .build()

@@ -84,6 +84,8 @@ object Reminders {
                 AlertKind.OVERDUE_RECEIVABLE, AlertKind.OVERDUE_PAYABLE -> prefs.overdue
                 AlertKind.HOLD_REVIEW -> prefs.holdReview
                 AlertKind.CONFLICT -> prefs.conflicts
+                // Só volta a notificar quando o texto muda (ver shouldNotify): um aviso, não um aviso diário.
+                AlertKind.BACKUP -> true
                 // Dados em falta ficam só na app: não justificam uma notificação diária.
                 AlertKind.MISSING_DATA -> false
             }

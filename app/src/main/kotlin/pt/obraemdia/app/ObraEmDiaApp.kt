@@ -6,6 +6,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import pt.obraemdia.app.backup.BackupManager
+import pt.obraemdia.app.backup.BackupPaths
 import pt.obraemdia.app.data.db.AppDatabase
 import pt.obraemdia.app.data.files.AttachmentStore
 import pt.obraemdia.app.data.repo.Agreement
@@ -20,7 +22,7 @@ import pt.obraemdia.app.demo.DemoSeeder
  * Dependências da app, criadas uma vez. Injeção manual em vez de Hilt: a app é pequena
  * e assim não há geração de código adicional (ver docs/DECISIONS.md).
  */
-class AppContainer(context: Context) {
+class AppContainer(context: Context, val backup: BackupManager) {
     val database: AppDatabase = AppDatabase.build(context)
     val repository = ObraRepository(database)
     val corrections = Corrections(database, repository, System::currentTimeMillis)
@@ -31,6 +33,7 @@ class AppContainer(context: Context) {
     val invoices = IssuedInvoices(database, repository, attachments, System::currentTimeMillis)
     val demoSeeder = DemoSeeder(database, repository) { paths -> paths.forEach(attachments::delete) }
     val appScope = CoroutineScope(SupervisorJob())
+    val appVersion: String = runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: "?"
 }
 
 class ObraEmDiaApp : Application() {
@@ -39,7 +42,10 @@ class ObraEmDiaApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        container = AppContainer(this)
+        val backup = BackupManager(backupPaths(this)) { file -> AppDatabase.build(this, file.absolutePath) }
+        // Antes de abrir a base: desfazer um restauro interrompido ou aplicar um pendente.
+        backup.onStartup()
+        container = AppContainer(this, backup)
         container.appScope.launch {
             container.demoSeeder.seedIfFirstRun()
             // Garante o lembrete diário agendado (ex.: depois de atualizar a app).
@@ -48,5 +54,11 @@ class ObraEmDiaApp : Application() {
         }
     }
 }
+
+fun backupPaths(context: Context) = BackupPaths(
+    databaseFile = context.getDatabasePath(AppDatabase.FILE_NAME),
+    filesDir = context.filesDir,
+    workDir = java.io.File(context.noBackupFilesDir, "backup"),
+)
 
 val Context.container: AppContainer get() = (applicationContext as ObraEmDiaApp).container

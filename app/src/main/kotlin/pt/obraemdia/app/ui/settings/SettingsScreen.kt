@@ -1,5 +1,6 @@
 package pt.obraemdia.app.ui.settings
 
+import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.Icons
@@ -59,11 +60,17 @@ private val hhmm = DateTimeFormatter.ofPattern("HH:mm")
 private fun parseTime(s: String): LocalTime? = runCatching { LocalTime.parse(s.trim().padStart(5, '0'), hhmm) }.getOrNull()
 
 @Composable
-fun SettingsScreen(vm: AppViewModel, snapshot: Snapshot, timeOff: List<TimeOffEntity>, onMessage: (String) -> Unit, onHistory: () -> Unit) {
+fun SettingsScreen(vm: AppViewModel, snapshot: Snapshot, timeOff: List<TimeOffEntity>, onMessage: (String) -> Unit, onHistory: () -> Unit, onBackup: () -> Unit) {
     Column(
         Modifier.verticalScroll(rememberScrollState()).imePadding().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
+        pt.obraemdia.app.ui.components.ShortcutRow(
+            title = "Cópia de segurança",
+            subtitle = "Guardar todos os dados num ficheiro ou restaurar noutro telemóvel",
+            icon = Icons.Filled.Backup,
+            onClick = onBackup,
+        )
         pt.obraemdia.app.ui.components.ShortcutRow(
             title = "Histórico de alterações",
             subtitle = "Correções, estornos, encerramentos e definições",

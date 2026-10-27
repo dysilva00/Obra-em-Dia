@@ -99,9 +99,22 @@ object Insights {
         snapshot.purchaseStatus.filter { !it.unallocated.isZero }.takeIf { it.isNotEmpty() }?.let {
             add(Alert(AlertKind.MISSING_DATA, "${it.size} compra(s) com valor por classificar (Contas)", null))
         }
+        // Só faz sentido lembrar a cópia quando já há dados reais a perder.
+        if (snapshot.summaries.any { !it.job.isDemo }) {
+            val last = snapshot.settings[Settings.LAST_BACKUP_AT]?.toLongOrNull()
+                ?.let { java.time.Instant.ofEpochMilli(it).atZone(AGENDA_ZONE).toLocalDate() }
+            when {
+                last == null -> add(Alert(AlertKind.BACKUP, "Ainda não há cópia de segurança dos dados", null))
+                last.plusDays(BACKUP_MAX_AGE_DAYS).isBefore(today) ->
+                    add(Alert(AlertKind.BACKUP, "Última cópia de segurança a ${last.dayOfMonth}/${last.monthValue}/${last.year}: faça uma nova", null))
+            }
+        }
     }.sortedBy { it.kind.ordinal }
 }
 
-enum class AlertKind { OVERDUE_RECEIVABLE, OVERDUE_PAYABLE, CONFLICT, HOLD_REVIEW, MISSING_DATA }
+enum class AlertKind { OVERDUE_RECEIVABLE, OVERDUE_PAYABLE, CONFLICT, HOLD_REVIEW, BACKUP, MISSING_DATA }
+
+/** Dias até a cópia de segurança ser considerada desatualizada. */
+const val BACKUP_MAX_AGE_DAYS = 30L
 
 data class Alert(val kind: AlertKind, val text: String, val jobId: String?)

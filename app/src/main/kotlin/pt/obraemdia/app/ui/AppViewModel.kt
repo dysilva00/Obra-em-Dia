@@ -372,4 +372,27 @@ class AppViewModel(private val container: AppContainer) : ViewModel() {
             onSuccess = { SaveResult(true, it) },
             onFailure = { SaveResult(false, "Não foi possível gravar: ${it.message ?: "erro desconhecido"}") },
         )
+
+    // ---- Cópia de segurança
+
+    /** Mensagem do restauro feito no arranque (mostrada uma vez). */
+    val restoreResult: String? = container.backup.consumeResult()
+
+    /** Exporta tudo para [out] e regista a data da cópia. */
+    suspend fun exportBackup(out: java.io.OutputStream): pt.obraemdia.app.backup.BackupManifest =
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            val now = System.currentTimeMillis()
+            container.backup.export(container.database, container.appVersion, now, out).also {
+                container.database.settingsDao().put(pt.obraemdia.app.data.db.SettingEntity(Settings.LAST_BACKUP_AT, now.toString()))
+            }
+        }
+
+    /** Lê e valida um backup sem tocar nos dados atuais. */
+    suspend fun prepareRestore(input: java.io.InputStream): pt.obraemdia.app.backup.StagedRestore =
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { container.backup.prepare(input) }
+
+    fun discardRestore() = container.backup.discard()
+
+    /** O restauro é aplicado no arranque seguinte; quem chama reinicia a app logo a seguir. */
+    fun scheduleRestore(staged: pt.obraemdia.app.backup.StagedRestore) = container.backup.schedule(staged)
 }
