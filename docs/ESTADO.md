@@ -35,7 +35,7 @@ Legenda: ✅ concluído e verificado · 🟡 parcial · ⬜ pendente
 - ✅ Alertas no Início: prestações e faturas vencidas, sobreposições, obras em espera a rever, dados em falta.
 - ✅ Exportação em PDF: balanço da obra (interno), resumo para o cliente (sem custos nem taxas internas) e relatório do mês; partilhar ou guardar no telemóvel. CSV dispensado pelo utilizador.
 - ✅ Notas, fotos e checklist por obra: fotos antes/durante/depois (câmara ou galeria, copiadas e comprimidas para a pasta privada), legendas, tarefas e lista de compras, notas editáveis. Verificado no emulador com a câmara virtual.
-- ✅ Lembretes: resumo diário configurável (hora e tipos), com a app fechada, sem repetir o mesmo aviso; permissão pedida só ao ligar. Verificado no emulador (notificação real).
+- ✅ Lembretes: resumo diário configurável (hora e tipos), com a app fechada, sem repetir o mesmo aviso; permissão pedida só ao ligar. Verificado no emulador e no telemóvel (notificação à hora marcada com a app fechada).
 - ✅ Faturas emitidas: ler QR (câmara), importar PDF (lê o QR da AT dentro do PDF) ou à mão; totais do ano por NIF (sem IVA, impostos, total, retenções), limite opcional, duplicados bloqueados, PDF anexado. Importação de PDF verificada no emulador; leitura pela câmara por verificar no aparelho real.
 - ✅ Adicionar gasto: Ler QR e Importar PDF preenchem NIF, tipo, número, ATCUD, data, total e base/IVA exatos; PDF guardado como comprovativo; duplicados também por ATCUD e conteúdo do QR.
 - ✅ Histórico de alterações (Definições): todas as criações, correções, estornos, anulações, encerramentos e definições, com filtro por tipo.
@@ -46,6 +46,7 @@ Legenda: ✅ concluído e verificado · 🟡 parcial · ⬜ pendente
 - ✅ Aviso quando as horas da mesma pessoa se sobrepõem ou o dia passa das 16 h; só grava depois de confirmar.
 - ✅ Cronómetro (um por pessoa, também para "Os dois"): começa em Registar horas, fica em destaque no Início e "Parar e registar" abre o formulário preenchido. Sobrevive a fechar a app.
 - ✅ Cliente a partir dos contactos (Nova obra e Editar obra): copia só o nome e o telefone, sem pedir permissão. No emulador com Android 17 abre o novo seletor privado de contactos.
+- ✅ Ecrã de Ajuda (ícone "?" no topo das abas e em Definições): 12 temas com passos curtos e os nomes reais dos botões.
 - ✅ Aviso no ecrã da cópia de segurança de que desinstalar ou limpar os dados apaga tudo.
 - ✅ Prova no aparelho real (Nothing Phone (1), Android 15): seletor de contactos e cronómetro (continua a contar com a app fechada).
 - ✅ Cópia de segurança (Definições → Cópia de segurança): exporta um .zip (base + fotos/anexos + manifesto com SHA-256) para onde se escolher; restauro validado antes de mexer nos dados e aplicado no arranque, com recuperação se for interrompido. Alerta no Início (e no resumo diário) quando não há cópia ou tem mais de 30 dias, só com dados reais. Ciclo exportar → apagar → restaurar verificado no emulador.

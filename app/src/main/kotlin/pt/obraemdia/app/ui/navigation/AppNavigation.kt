@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.CalendarMonth
@@ -83,6 +84,7 @@ import kotlin.reflect.KClass
 @Serializable data object InvoicesRoute
 @Serializable data object HistoryRoute
 @Serializable data object BackupRoute
+@Serializable data object HelpRoute
 @Serializable data object QrScanRoute
 @Serializable data class JobNotesRoute(val jobId: String)
 
@@ -109,6 +111,7 @@ private fun NavDestination?.title(): String = when {
     hasRoute(InvoicesRoute::class) -> "Faturas emitidas"
     hasRoute(HistoryRoute::class) -> "Histórico de alterações"
     hasRoute(BackupRoute::class) -> "Cópia de segurança"
+    hasRoute(HelpRoute::class) -> "Ajuda"
     hasRoute(QrScanRoute::class) -> "Ler código QR"
     hasRoute(JobNotesRoute::class) -> "Notas, fotos e checklist"
     hasRoute(JobDetailRoute::class) -> "Obra"
@@ -162,6 +165,9 @@ fun AppNavigation() {
                     },
                     actions = {
                         if (currentTab != null) {
+                            IconButton(onClick = { nav.navigate(HelpRoute) }) {
+                                Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = "Ajuda")
+                            }
                             IconButton(onClick = { nav.navigate(SettingsRoute) }) {
                                 Icon(Icons.Filled.Settings, contentDescription = "Definições")
                             }
@@ -277,6 +283,7 @@ fun AppNavigation() {
                 snap.summary(id)?.let { EditJobScreen(vm, it, clients, snap.isClosed(id), finished) }
             }
             composable<JobNotesRoute> { entry -> pt.obraemdia.app.ui.jobs.JobNotesScreen(vm.media, entry.toRoute<JobNotesRoute>().jobId, vm.today, message) }
+            composable<HelpRoute> { pt.obraemdia.app.ui.settings.HelpScreen() }
             composable<BackupRoute> { pt.obraemdia.app.ui.settings.BackupScreen(vm, snap, message) }
             composable<HistoryRoute> {
                 val events by vm.history.collectAsStateWithLifecycle()
@@ -302,7 +309,7 @@ fun AppNavigation() {
             composable<ForecastRoute> { ForecastScreen(vm, snap) }
             composable<SettingsRoute> {
                 val timeOff by vm.timeOff.collectAsStateWithLifecycle()
-                SettingsScreen(vm, snap, timeOff, message, onHistory = { nav.navigate(HistoryRoute) }, onBackup = { nav.navigate(BackupRoute) })
+                SettingsScreen(vm, snap, timeOff, message, onHistory = { nav.navigate(HistoryRoute) }, onBackup = { nav.navigate(BackupRoute) }, onHelp = { nav.navigate(HelpRoute) })
             }
             composable<ClosureRoute> { entry -> ClosureScreen(vm, snap, entry.toRoute<ClosureRoute>().jobId, message, finished) }
             composable<ExpenseRoute> { entry -> ExpenseScreen(vm, snap, entry.toRoute<ExpenseRoute>().jobId, onScan = { nav.navigate(QrScanRoute) }, onDone = finished) }

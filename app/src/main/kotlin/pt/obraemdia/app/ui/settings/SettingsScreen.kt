@@ -4,6 +4,7 @@ import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.EventBusy
@@ -60,11 +61,17 @@ private val hhmm = DateTimeFormatter.ofPattern("HH:mm")
 private fun parseTime(s: String): LocalTime? = runCatching { LocalTime.parse(s.trim().padStart(5, '0'), hhmm) }.getOrNull()
 
 @Composable
-fun SettingsScreen(vm: AppViewModel, snapshot: Snapshot, timeOff: List<TimeOffEntity>, onMessage: (String) -> Unit, onHistory: () -> Unit, onBackup: () -> Unit) {
+fun SettingsScreen(vm: AppViewModel, snapshot: Snapshot, timeOff: List<TimeOffEntity>, onMessage: (String) -> Unit, onHistory: () -> Unit, onBackup: () -> Unit, onHelp: () -> Unit) {
     Column(
         Modifier.verticalScroll(rememberScrollState()).imePadding().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
+        pt.obraemdia.app.ui.components.ShortcutRow(
+            title = "Ajuda",
+            subtitle = "Como registar horas, gastos, pagamentos, cópias…",
+            icon = Icons.AutoMirrored.Filled.HelpOutline,
+            onClick = onHelp,
+        )
         pt.obraemdia.app.ui.components.ShortcutRow(
             title = "Cópia de segurança",
             subtitle = "Guardar todos os dados num ficheiro ou restaurar noutro telemóvel",
