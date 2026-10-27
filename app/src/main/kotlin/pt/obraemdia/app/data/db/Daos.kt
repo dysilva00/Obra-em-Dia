@@ -8,6 +8,7 @@ import androidx.room.Query
 import androidx.room.Update
 import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
+import pt.obraemdia.domain.billing.DocumentType
 
 @Dao
 interface WorkerDao {
@@ -150,4 +151,42 @@ interface SettingsDao {
     fun observeAll(): Flow<List<SettingEntity>>
 
     @Upsert suspend fun put(setting: SettingEntity)
+}
+
+@Dao
+interface PurchaseDao {
+    /** IGNORE: o operationId e as chaves de duplicado são únicos; -1 significa que não foi gravado. */
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insert(doc: PurchaseDocumentEntity): Long
+
+    @Insert suspend fun insertAllocations(allocations: List<CostAllocationEntity>)
+
+    @Query("SELECT * FROM purchase_documents WHERE deletedAt IS NULL ORDER BY docDate DESC, createdAt DESC")
+    fun observeAll(): Flow<List<PurchaseDocumentEntity>>
+
+    @Query("SELECT * FROM cost_allocations")
+    fun observeAllocations(): Flow<List<CostAllocationEntity>>
+
+    @Query("SELECT * FROM purchase_documents WHERE id = :id")
+    suspend fun getById(id: String): PurchaseDocumentEntity?
+
+    @Query("SELECT * FROM purchase_documents WHERE operationId = :operationId")
+    suspend fun getByOperation(operationId: String): PurchaseDocumentEntity?
+
+    /** Documento já registado com a mesma identificação (emitente + tipo + número, ou ATCUD). */
+    @Query(
+        """
+        SELECT * FROM purchase_documents WHERE deletedAt IS NULL AND (
+            (:atcud IS NOT NULL AND atcud = :atcud)
+            OR (:nif IS NOT NULL AND :number IS NOT NULL AND supplierNif = :nif AND docType = :type AND docNumber = :number)
+        ) LIMIT 1
+        """,
+    )
+    suspend fun findDuplicate(nif: String?, type: DocumentType, number: String?, atcud: String?): PurchaseDocumentEntity?
+
+    @Query("SELECT COALESCE(SUM(amountCents), 0) FROM cash_movements WHERE purchaseDocumentId = :docId AND kind = 'SUPPLIER_PAYMENT'")
+    suspend fun paidCents(docId: String): Long
+
+    @Query("SELECT * FROM cost_allocations WHERE documentId = :docId")
+    suspend fun allocationsFor(docId: String): List<CostAllocationEntity>
 }

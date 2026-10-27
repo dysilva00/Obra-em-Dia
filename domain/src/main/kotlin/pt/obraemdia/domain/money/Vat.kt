@@ -20,6 +20,15 @@ object Vat {
 
     fun gross(net: Money, rateBp: Int): Money = net + amount(net, rateBp)
 
+    /** Base a partir de um total com IVA (como vem nos talões): IVA = total − base, para somar sempre certo. */
+    fun splitGross(gross: Money, rateBp: Int): DocumentAmounts {
+        require(rateBp >= 0) { "Taxa de IVA inválida" }
+        val net = BigDecimal.valueOf(gross.cents)
+            .multiply(BigDecimal.valueOf(10_000))
+            .divide(BigDecimal.valueOf(10_000L + rateBp), 0, RoundingMode.HALF_UP)
+        return DocumentAmounts(Money(net.longValueExact()), gross - Money(net.longValueExact()), gross)
+    }
+
     /** Taxa em texto pt-PT: 2300 → "23 %", 650 → "6,5 %". */
     fun label(rateBp: Int): String =
         BigDecimal.valueOf(rateBp.toLong(), 2).stripTrailingZeros().toPlainString().replace('.', ',') + " %"

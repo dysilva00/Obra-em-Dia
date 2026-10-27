@@ -6,6 +6,9 @@ import pt.obraemdia.app.data.db.AppDatabase
 import pt.obraemdia.app.data.db.CashKind
 import pt.obraemdia.app.data.db.CashMovementEntity
 import pt.obraemdia.app.data.db.ClientEntity
+import pt.obraemdia.app.data.db.CostAllocationEntity
+import pt.obraemdia.app.data.db.ExpenseCategory
+import pt.obraemdia.app.data.db.PurchaseDocumentEntity
 import pt.obraemdia.app.data.db.JobEntity
 import pt.obraemdia.app.data.db.PaymentMethod
 import pt.obraemdia.app.data.db.ScheduleAssignmentEntity
@@ -20,10 +23,15 @@ import pt.obraemdia.app.data.repo.ObraRepository
 import pt.obraemdia.app.data.repo.Settings
 import pt.obraemdia.app.data.repo.newId
 import pt.obraemdia.domain.billing.BillingMode
+import pt.obraemdia.domain.billing.DocumentType
+import pt.obraemdia.domain.billing.VatTreatment
 import pt.obraemdia.domain.billing.MaterialsPolicy
 import pt.obraemdia.domain.job.HoldReason
 import pt.obraemdia.domain.job.JobStatus
 import pt.obraemdia.domain.job.Priority
+import pt.obraemdia.domain.money.Allocation
+import pt.obraemdia.domain.money.Money
+import pt.obraemdia.domain.money.Vat
 import pt.obraemdia.domain.schedule.AGENDA_ZONE
 import pt.obraemdia.domain.schedule.BookingFirmness
 import pt.obraemdia.domain.schedule.DayPart
@@ -38,6 +46,8 @@ interface DemoDao {
     @Query("DELETE FROM time_off WHERE isDemo = 1") suspend fun deleteTimeOff()
     @Query("DELETE FROM time_entries WHERE isDemo = 1") suspend fun deleteTimeEntries()
     @Query("DELETE FROM cash_movements WHERE isDemo = 1") suspend fun deleteCash()
+    // As parcelas (cost_allocations) são apagadas em cascata com o documento.
+    @Query("DELETE FROM purchase_documents WHERE isDemo = 1") suspend fun deletePurchases()
     @Query("DELETE FROM jobs WHERE isDemo = 1") suspend fun deleteJobs()
     @Query("DELETE FROM work_sites WHERE isDemo = 1") suspend fun deleteSites()
     @Query("DELETE FROM clients WHERE isDemo = 1") suspend fun deleteClients()
@@ -63,7 +73,7 @@ class DemoSeeder(private val db: AppDatabase, private val repo: ObraRepository) 
     suspend fun deleteDemoData() = repo.transaction {
         val d = db.demoDao()
         // Ordem inversa das dependências (chaves estrangeiras RESTRICT).
-        d.deleteSchedule(); d.deleteTimeOff(); d.deleteTimeEntries(); d.deleteCash()
+        d.deleteSchedule(); d.deleteTimeOff(); d.deleteTimeEntries(); d.deleteCash(); d.deletePurchases()
         d.deleteJobs(); d.deleteSites(); d.deleteClients()
         db.settingsDao().put(SettingEntity(Settings.OPENING_BALANCE_CENTS, "0"))
     }
@@ -143,9 +153,42 @@ class DemoSeeder(private val db: AppDatabase, private val repo: ObraRepository) 
         work(wall, p2, today.minusDays(4), 240)
 
         cash(today.minusDays(12), CashKind.CLIENT_RECEIPT, 1000, bath, "Ana (exemplo)")
-        cash(today.minusDays(10), CashKind.SUPPLIER_PAYMENT, 450, bath, "Loja de materiais (exemplo)")
         cash(today.minusDays(8), CashKind.CLIENT_RECEIPT, 500, roof, "Sr. Exemplo")
-        cash(today.minusDays(6), CashKind.SUPPLIER_PAYMENT, 65, null, "Combustível")
         cash(today.minusDays(5), CashKind.CLIENT_RECEIPT, 600, kitchen, "Maria (exemplo)")
+
+        // Compras: o documento conta uma vez; as parcelas distribuem-no; pagar é um movimento à parte.
+        suspend fun purchase(
+            date: LocalDate, supplier: String, category: ExpenseCategory, grossCents: Long,
+            lines: List<Pair<String?, Long>>, paid: Boolean, due: LocalDate? = null,
+        ) {
+            val docId = newId()
+            val amounts = Vat.splitGross(Money(grossCents), 2300)
+            db.purchaseDao().insert(
+                PurchaseDocumentEntity(
+                    id = docId, operationId = newId(), supplierName = supplier, supplierNif = null,
+                    docType = DocumentType.INVOICE, docNumber = null, atcud = null, docDate = date, dueDate = due,
+                    category = category, netCents = amounts.net.cents, vatCents = amounts.vat.cents, grossCents = grossCents,
+                    vatTreatment = VatTreatment.UNKNOWN, createdAt = now, updatedAt = now, isDemo = true,
+                ),
+            )
+            val split = Allocation.splitDocument(amounts, lines.map { Money(it.second) })
+            db.purchaseDao().insertAllocations(
+                split.lines.mapIndexed { i, l -> CostAllocationEntity(newId(), docId, lines[i].first, l.net.cents, l.vat.cents, l.gross.cents) },
+            )
+            if (paid) {
+                db.cashDao().insert(
+                    CashMovementEntity(
+                        id = newId(), operationId = newId(), date = date, kind = CashKind.SUPPLIER_PAYMENT, amountCents = grossCents,
+                        jobId = lines.singleOrNull()?.first, method = PaymentMethod.CASH, counterparty = supplier,
+                        purchaseDocumentId = docId, createdAt = now, isDemo = true,
+                    ),
+                )
+            }
+        }
+
+        purchase(today.minusDays(10), "Loja de materiais (exemplo)", ExpenseCategory.MATERIAL, 45000, listOf(bath to 45000L), paid = true)
+        purchase(today.minusDays(6), "Combustível (exemplo)", ExpenseCategory.TRAVEL, 6500, listOf(null to 6500L), paid = true)
+        purchase(today.minusDays(3), "Drogaria (exemplo)", ExpenseCategory.MATERIAL, 12300, listOf(bath to 8000L, wall to 4300L), paid = true)
+        purchase(today.minusDays(9), "Armazém de cerâmica (exemplo)", ExpenseCategory.MATERIAL, 31000, listOf(kitchen to 31000L), paid = false, due = today.plusDays(20))
     }
 }

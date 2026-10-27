@@ -47,6 +47,7 @@ import pt.obraemdia.app.ui.accounts.AccountsScreen
 import pt.obraemdia.app.ui.agenda.AgendaScreen
 import pt.obraemdia.app.ui.components.DemoBanner
 import pt.obraemdia.app.ui.forms.BookingScreen
+import pt.obraemdia.app.ui.forms.ExpenseScreen
 import pt.obraemdia.app.ui.forms.NewJobScreen
 import pt.obraemdia.app.ui.forms.RecordPaymentScreen
 import pt.obraemdia.app.ui.forms.RecordTimeScreen
@@ -64,6 +65,7 @@ import kotlin.reflect.KClass
 @Serializable data class RecordTimeRoute(val jobId: String? = null)
 @Serializable data class RecordPaymentRoute(val jobId: String? = null)
 @Serializable data class BookingRoute(val jobId: String? = null, val date: String? = null)
+@Serializable data class ExpenseRoute(val jobId: String? = null)
 
 private data class Tab(val route: Any, val routeClass: KClass<*>, val label: String, val icon: ImageVector)
 
@@ -80,6 +82,7 @@ private fun NavDestination?.title(): String = when {
     hasRoute(RecordTimeRoute::class) -> "Registar horas"
     hasRoute(RecordPaymentRoute::class) -> "Registar pagamento"
     hasRoute(BookingRoute::class) -> "Agendar obra"
+    hasRoute(ExpenseRoute::class) -> "Adicionar gasto"
     hasRoute(JobDetailRoute::class) -> "Obra"
     else -> tabs.firstOrNull { hasRoute(it.routeClass) }?.label.orEmpty()
 }
@@ -161,14 +164,22 @@ fun AppNavigation() {
                     snap, agenda, vm.today, openJob,
                     onRecordTime = { nav.navigate(RecordTimeRoute()) },
                     onRecordPayment = { nav.navigate(RecordPaymentRoute()) },
-                    onNotReady = notReady,
+                    onAddExpense = { nav.navigate(ExpenseRoute()) },
                 )
             }
             composable<AgendaRoute> {
                 AgendaScreen(snap, agenda, vm.today, openJob, onSchedule = { date -> nav.navigate(BookingRoute(date = date?.toString())) })
             }
             composable<JobsRoute> { JobsScreen(snap, openJob, onNewJob = { nav.navigate(NewJobRoute) }) }
-            composable<AccountsRoute> { AccountsScreen(snap, vm.today, notReady) }
+            composable<AccountsRoute> {
+                AccountsScreen(
+                    snap, vm.today,
+                    onAddExpense = { nav.navigate(ExpenseRoute()) },
+                    onPaySupplier = vm::paySupplier,
+                    onMessage = message,
+                    onNotReady = notReady,
+                )
+            }
             composable<JobDetailRoute> { entry ->
                 val jobId = entry.toRoute<JobDetailRoute>().jobId
                 JobDetailScreen(
@@ -176,6 +187,7 @@ fun AppNavigation() {
                     onRecordTime = { nav.navigate(RecordTimeRoute(jobId)) },
                     onRecordPayment = { nav.navigate(RecordPaymentRoute(jobId)) },
                     onSchedule = { nav.navigate(BookingRoute(jobId)) },
+                    onAddExpense = { nav.navigate(ExpenseRoute(jobId)) },
                     onChangeStatus = { change -> vm.changeStatus(jobId, change) },
                     onMessage = message,
                     onNotReady = notReady,
@@ -193,6 +205,7 @@ fun AppNavigation() {
             }
             composable<RecordTimeRoute> { entry -> RecordTimeScreen(vm, snap, entry.toRoute<RecordTimeRoute>().jobId, finished) }
             composable<RecordPaymentRoute> { entry -> RecordPaymentScreen(vm, snap, entry.toRoute<RecordPaymentRoute>().jobId, finished) }
+            composable<ExpenseRoute> { entry -> ExpenseScreen(vm, snap, entry.toRoute<ExpenseRoute>().jobId, finished) }
             composable<BookingRoute> { entry ->
                 val route = entry.toRoute<BookingRoute>()
                 BookingScreen(vm, snap, route.jobId, route.date?.let(java.time.LocalDate::parse), finished)

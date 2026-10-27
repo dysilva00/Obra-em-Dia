@@ -10,7 +10,10 @@ import kotlinx.coroutines.flow.stateIn
 import pt.obraemdia.app.AppContainer
 import pt.obraemdia.app.data.db.ScheduleRow
 import pt.obraemdia.app.data.db.TimeOffEntity
+import pt.obraemdia.app.data.db.PaymentMethod
 import pt.obraemdia.app.data.repo.BookingOutcome
+import pt.obraemdia.app.data.repo.ExpenseOutcome
+import pt.obraemdia.app.data.repo.NewExpense
 import pt.obraemdia.app.data.repo.NewBooking
 import pt.obraemdia.app.data.repo.NewJob
 import pt.obraemdia.app.data.repo.NewPayment
@@ -23,6 +26,7 @@ import pt.obraemdia.app.data.repo.toBookings
 import pt.obraemdia.app.data.repo.toUnavailabilities
 import pt.obraemdia.domain.job.StatusChange
 import pt.obraemdia.domain.job.label
+import pt.obraemdia.domain.money.Money
 import pt.obraemdia.domain.schedule.AGENDA_ZONE
 import pt.obraemdia.domain.schedule.Booking
 import pt.obraemdia.domain.schedule.Conflict
@@ -126,6 +130,28 @@ class AppViewModel(private val container: AppContainer) : ViewModel() {
     suspend fun recordPayment(input: NewPayment): SaveResult = save {
         when (repo.recordPayment(input)) {
             SaveOutcome.Saved -> "Pagamento registado"
+            SaveOutcome.Duplicate -> "Este pagamento já tinha sido gravado"
+        }
+    }
+
+    suspend fun recordExpense(input: NewExpense): SaveResult = runCatching {
+        when (val outcome = repo.recordExpense(input)) {
+            is ExpenseOutcome.Saved -> SaveResult(
+                true,
+                "Gasto registado" + if (outcome.unallocated.isZero) "" else " · ${outcome.unallocated.format()} por classificar",
+            )
+            is ExpenseOutcome.Duplicate -> SaveResult(
+                false,
+                outcome.existing?.let { d ->
+                    "Este documento já está registado: ${listOfNotNull(d.supplierName, d.docNumber).joinToString(" ")} de ${d.docDate.shortLabel()}, ${Money(d.grossCents).format()}"
+                } ?: "Este documento já está registado",
+            )
+        }
+    }.getOrElse { SaveResult(false, "Não foi possível gravar: ${it.message}") }
+
+    suspend fun paySupplier(operationId: String, documentId: String, amount: Money, date: LocalDate, method: PaymentMethod): SaveResult = save {
+        when (repo.paySupplier(operationId, documentId, amount, date, method)) {
+            SaveOutcome.Saved -> "Pagamento ao fornecedor registado"
             SaveOutcome.Duplicate -> "Este pagamento já tinha sido gravado"
         }
     }

@@ -131,6 +131,7 @@ fun JobDetailScreen(
     onRecordTime: () -> Unit,
     onRecordPayment: () -> Unit,
     onSchedule: () -> Unit,
+    onAddExpense: () -> Unit,
     onChangeStatus: suspend (StatusChange) -> SaveResult,
     onMessage: (String) -> Unit,
     onNotReady: (String) -> Unit,
@@ -174,7 +175,7 @@ fun JobDetailScreen(
             // FlowRow: com letra grande, os botões passam para a linha seguinte em vez de partir palavras.
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilledTonalButton(onClick = onRecordTime, modifier = Modifier.heightIn(min = 48.dp)) { Text("Horas", softWrap = false) }
-                FilledTonalButton(onClick = { onNotReady("Adicionar gasto") }, modifier = Modifier.heightIn(min = 48.dp)) { Text("Gasto", softWrap = false) }
+                FilledTonalButton(onClick = onAddExpense, modifier = Modifier.heightIn(min = 48.dp)) { Text("Gasto", softWrap = false) }
                 FilledTonalButton(onClick = onRecordPayment, modifier = Modifier.heightIn(min = 48.dp)) { Text("Pagamento", softWrap = false) }
                 FilledTonalButton(onClick = onSchedule, modifier = Modifier.heightIn(min = 48.dp)) { Text("Agendar", softWrap = false) }
             }
@@ -256,9 +257,16 @@ fun JobDetailScreen(
                 } else {
                     LabelValue("Venda sem IVA", r.saleNet.format())
                     LabelValue("Custo interno de mão de obra", r.internalLaborCost.format())
-                    LabelValue("Materiais e despesas", "Ainda não registados")
-                    LabelValue("Resultado (provisório)", r.result.format())
+                    LabelValue("Materiais e despesas (${s.costDocuments} doc.)", s.costs.format())
+                    LabelValue("Resultado", r.result.format())
                     LabelValue("Margem", r.marginPercent?.let { "${it.toPlainString().replace('.', ',')} %" } ?: "—")
+                    if (s.costsWithUnknownVat) {
+                        Text(
+                            "Há despesas com IVA por classificar: o IVA foi contado como custo.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
         }

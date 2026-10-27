@@ -6,6 +6,8 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import pt.obraemdia.domain.billing.BillingMode
+import pt.obraemdia.domain.billing.DocumentType
+import pt.obraemdia.domain.billing.VatTreatment
 import pt.obraemdia.domain.billing.MaterialsPolicy
 import pt.obraemdia.domain.job.HoldReason
 import pt.obraemdia.domain.job.JobStatus
@@ -211,9 +213,10 @@ enum class PaymentMethod { CASH, TRANSFER, MBWAY, OTHER }
     foreignKeys = [
         ForeignKey(JobEntity::class, ["id"], ["jobId"], onDelete = ForeignKey.RESTRICT),
         ForeignKey(CashMovementEntity::class, ["id"], ["reversalOfId"], onDelete = ForeignKey.RESTRICT),
+        ForeignKey(PurchaseDocumentEntity::class, ["id"], ["purchaseDocumentId"], onDelete = ForeignKey.RESTRICT),
     ],
     indices = [
-        Index("jobId"), Index("date"), Index("reversalOfId"),
+        Index("jobId"), Index("date"), Index("reversalOfId"), Index("purchaseDocumentId"),
         Index(value = ["operationId"], unique = true),
     ],
 )
@@ -230,6 +233,8 @@ data class CashMovementEntity(
     val note: String? = null,
     /** Se preenchido, este movimento anula o indicado. */
     val reversalOfId: String? = null,
+    /** Pagamento (total ou parcial) de um documento de compra. */
+    val purchaseDocumentId: String? = null,
     val createdAt: Long,
     val isDemo: Boolean = false,
 ) {
@@ -250,3 +255,72 @@ data class AuditEventEntity(
 /** Configuração da atividade em pares chave/valor (saldo inicial, margem de deslocação, horário…). */
 @Entity(tableName = "settings")
 data class SettingEntity(@PrimaryKey val key: String, val value: String)
+
+enum class ExpenseCategory { MATERIAL, TRAVEL, RENTAL, TOOL, SUBCONTRACT, OTHER }
+
+/**
+ * Documento de compra original, guardado uma única vez. Valores COM SINAL: numa nota de crédito
+ * são negativos. A distribuição por obras está em [CostAllocationEntity]; os pagamentos ao
+ * fornecedor são movimentos de caixa ligados por purchaseDocumentId (uma fatura não prova pagamento).
+ */
+@Entity(
+    tableName = "purchase_documents",
+    foreignKeys = [
+        ForeignKey(PurchaseDocumentEntity::class, ["id"], ["originalDocumentId"], onDelete = ForeignKey.RESTRICT),
+        ForeignKey(WorkerEntity::class, ["id"], ["paidByWorkerId"], onDelete = ForeignKey.RESTRICT),
+    ],
+    indices = [
+        Index("docDate"), Index("originalDocumentId"), Index("paidByWorkerId"),
+        Index(value = ["operationId"], unique = true),
+        // Duplicados: o mesmo documento do mesmo emitente só pode existir uma vez (NULLs não colidem).
+        Index(value = ["supplierNif", "docType", "docNumber"], unique = true),
+        Index(value = ["atcud"], unique = true),
+        Index(value = ["contentHash"], unique = true),
+    ],
+)
+data class PurchaseDocumentEntity(
+    @PrimaryKey val id: String,
+    val operationId: String,
+    val supplierName: String?,
+    val supplierNif: String?,
+    val docType: DocumentType,
+    val docNumber: String?,
+    val atcud: String?,
+    val docDate: LocalDate,
+    val dueDate: LocalDate? = null,
+    val category: ExpenseCategory,
+    val netCents: Long,
+    val vatCents: Long,
+    val grossCents: Long,
+    val vatTreatment: VatTreatment,
+    /** Nota de crédito: documento original a que se refere. */
+    val originalDocumentId: String? = null,
+    /** Quem pagou (indicação, não autenticação). */
+    val paidByWorkerId: String? = null,
+    /** Conteúdo original lido do QR, para auditoria. */
+    val rawQr: String? = null,
+    val contentHash: String? = null,
+    val note: String? = null,
+    val createdAt: Long,
+    val updatedAt: Long,
+    val deletedAt: Long? = null,
+    val isDemo: Boolean = false,
+)
+
+/** Parcela de um documento atribuída a uma obra ou, com jobId nulo, a despesas gerais. */
+@Entity(
+    tableName = "cost_allocations",
+    foreignKeys = [
+        ForeignKey(PurchaseDocumentEntity::class, ["id"], ["documentId"], onDelete = ForeignKey.CASCADE),
+        ForeignKey(JobEntity::class, ["id"], ["jobId"], onDelete = ForeignKey.RESTRICT),
+    ],
+    indices = [Index("documentId"), Index("jobId")],
+)
+data class CostAllocationEntity(
+    @PrimaryKey val id: String,
+    val documentId: String,
+    val jobId: String?,
+    val netCents: Long,
+    val vatCents: Long,
+    val grossCents: Long,
+)

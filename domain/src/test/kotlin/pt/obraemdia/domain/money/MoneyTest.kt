@@ -95,3 +95,17 @@ class VatTest {
         assertEquals("6,5 %", Vat.label(650))
     }
 }
+
+class VatSplitTest {
+
+    @Test
+    fun `base a partir do total com iva`() {
+        val doc = Vat.splitGross(Money(12300), 2300)
+        assertEquals(Money(10000), doc.net)
+        assertEquals(Money(2300), doc.vat)
+        // 10,00 € a 23 %: 8,13 + 1,87 = 10,00
+        val odd = Vat.splitGross(Money(1000), 2300)
+        assertEquals(Money(813), odd.net)
+        assertEquals(Money(1000), odd.net + odd.vat)
+    }
+}

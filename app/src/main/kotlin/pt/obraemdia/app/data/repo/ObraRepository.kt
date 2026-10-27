@@ -10,6 +10,9 @@ import pt.obraemdia.app.data.db.AuditEventEntity
 import pt.obraemdia.app.data.db.CashKind
 import pt.obraemdia.app.data.db.CashMovementEntity
 import pt.obraemdia.app.data.db.ClientEntity
+import pt.obraemdia.app.data.db.CostAllocationEntity
+import pt.obraemdia.app.data.db.ExpenseCategory
+import pt.obraemdia.app.data.db.PurchaseDocumentEntity
 import pt.obraemdia.app.data.db.JobEntity
 import pt.obraemdia.app.data.db.PaymentMethod
 import pt.obraemdia.app.data.db.ScheduleRow
@@ -18,6 +21,9 @@ import pt.obraemdia.app.data.db.TimeEntryKind
 import pt.obraemdia.app.data.db.TimeOffEntity
 import pt.obraemdia.app.data.db.WorkSiteEntity
 import pt.obraemdia.domain.billing.BillingMode
+import pt.obraemdia.domain.billing.Costs
+import pt.obraemdia.domain.billing.DocumentType
+import pt.obraemdia.domain.billing.VatTreatment
 import pt.obraemdia.domain.billing.MaterialsPolicy
 import pt.obraemdia.domain.job.JobStatus
 import pt.obraemdia.domain.job.Priority
@@ -26,7 +32,10 @@ import pt.obraemdia.app.data.db.ScheduleEntryEntity
 import pt.obraemdia.domain.job.JobTransitions
 import pt.obraemdia.domain.job.StatusChange
 import pt.obraemdia.domain.job.TransitionResult
+import pt.obraemdia.domain.money.Allocation
+import pt.obraemdia.domain.money.DocumentAmounts
 import pt.obraemdia.domain.money.Money
+import pt.obraemdia.domain.money.Vat
 import pt.obraemdia.domain.schedule.Booking
 import pt.obraemdia.domain.schedule.BookingFirmness
 import pt.obraemdia.domain.schedule.Conflict
@@ -94,6 +103,43 @@ sealed interface BookingOutcome {
     data object Duplicate : BookingOutcome
 }
 
+/** Parcela de um gasto: [jobId] nulo = despesa geral. Valor com IVA, positivo como no papel. */
+data class ExpenseLine(val jobId: String?, val gross: Money)
+
+data class NewExpense(
+    val operationId: String,
+    val supplierName: String?,
+    val supplierNif: String?,
+    val docType: DocumentType,
+    val docNumber: String?,
+    val atcud: String?,
+    val docDate: LocalDate,
+    val dueDate: LocalDate?,
+    val category: ExpenseCategory,
+    /** Total com IVA, positivo como aparece no documento; o sinal vem do tipo. */
+    val gross: Money,
+    /** Null = IVA não discriminado (o total entra como custo). */
+    val vatRateBp: Int?,
+    val vatTreatment: VatTreatment,
+    val lines: List<ExpenseLine>,
+    val paidNow: Boolean,
+    val paymentDate: LocalDate?,
+    val paymentMethod: PaymentMethod?,
+    val paidByWorkerId: String?,
+    val originalDocumentId: String? = null,
+    val rawQr: String? = null,
+    val note: String? = null,
+)
+
+sealed interface ExpenseOutcome {
+    data class Saved(val documentId: String, val unallocated: Money) : ExpenseOutcome
+    /** [existing] é o documento já registado, para o abrir em vez de duplicar. */
+    data class Duplicate(val existing: PurchaseDocumentEntity?) : ExpenseOutcome
+}
+
+private fun sha256(text: String): String =
+    java.security.MessageDigest.getInstance("SHA-256").digest(text.toByteArray()).joinToString("") { "%02x".format(it) }
+
 sealed interface StatusOutcome {
     data class Changed(val releasedBookings: Int) : StatusOutcome
     data class Rejected(val message: String) : StatusOutcome
@@ -102,12 +148,16 @@ sealed interface StatusOutcome {
 class ObraRepository(private val db: AppDatabase, private val clock: () -> Long = System::currentTimeMillis) {
 
     val snapshot: Flow<Snapshot> = combine(
-        db.workerDao().observeAll(),
-        db.jobDao().observeAll(),
-        db.timeEntryDao().observeAll(),
-        db.cashDao().observeAll(),
-        db.settingsDao().observeAll().map(Settings::toMap),
-    ) { workers, jobs, entries, cash, settings -> Snapshot(workers, jobs, entries, cash, settings) }
+        combine(
+            db.workerDao().observeAll(),
+            db.jobDao().observeAll(),
+            db.timeEntryDao().observeAll(),
+            db.cashDao().observeAll(),
+            db.settingsDao().observeAll().map(Settings::toMap),
+        ) { workers, jobs, entries, cash, settings -> Snapshot(workers, jobs, entries, cash, settings) },
+        db.purchaseDao().observeAll(),
+        db.purchaseDao().observeAllocations(),
+    ) { base, purchases, allocations -> base.copy(purchases = purchases, allocations = allocations) }
 
     fun schedule(fromMs: Long, toMs: Long): Flow<Pair<List<ScheduleRow>, List<TimeOffEntity>>> =
         combine(db.scheduleDao().observeRange(fromMs, toMs), db.scheduleDao().observeTimeOff(fromMs, toMs)) { a, b -> a to b }
@@ -263,6 +313,106 @@ class ObraRepository(private val db: AppDatabase, private val clock: () -> Long 
             val overlap = if (conflicts.isNotEmpty()) " · sobreposição mantida: ${input.overlapReason}" else ""
             audit("schedule", input.operationId, "create", "$inserted dia(s)$overlap")
             BookingOutcome.Saved(inserted, becomesScheduled)
+        }
+    }
+
+    /**
+     * Regista um documento de compra uma única vez e reparte-o pelas obras/despesas gerais.
+     * Duplicados (mesmo emitente + tipo + número, ou mesmo ATCUD, ou repetição da operação) não são gravados.
+     * Compra a crédito: conta como custo mas só afeta a caixa quando for paga.
+     */
+    suspend fun recordExpense(input: NewExpense): ExpenseOutcome {
+        require(input.docType.createsExpense) { "Este tipo de documento não cria despesa" }
+        require(input.gross.isPositive) { "O total tem de ser positivo" }
+        require(input.lines.all { it.gross.isPositive }) { "As parcelas têm de ser positivas" }
+        val now = clock()
+        return transaction {
+            db.purchaseDao().getByOperation(input.operationId)?.let { return@transaction ExpenseOutcome.Duplicate(it) }
+            val nif = input.supplierNif?.filter(Char::isDigit)?.takeIf { it.isNotEmpty() }
+            val number = input.docNumber?.trim()?.takeIf { it.isNotEmpty() }
+            val atcud = input.atcud?.trim()?.takeIf { it.isNotEmpty() }
+            db.purchaseDao().findDuplicate(nif, input.docType, number, atcud)?.let { return@transaction ExpenseOutcome.Duplicate(it) }
+
+            val amounts = Costs.signed(
+                input.docType,
+                input.vatRateBp?.let { Vat.splitGross(input.gross, it) } ?: DocumentAmounts(input.gross, Money.ZERO, input.gross),
+            )
+            val docId = newId()
+            val rowId = db.purchaseDao().insert(
+                PurchaseDocumentEntity(
+                    id = docId,
+                    operationId = input.operationId,
+                    supplierName = input.supplierName?.trim()?.takeIf { it.isNotEmpty() },
+                    supplierNif = nif,
+                    docType = input.docType,
+                    docNumber = number,
+                    atcud = atcud,
+                    docDate = input.docDate,
+                    dueDate = input.dueDate,
+                    category = input.category,
+                    netCents = amounts.net.cents,
+                    vatCents = amounts.vat.cents,
+                    grossCents = amounts.gross.cents,
+                    vatTreatment = input.vatTreatment,
+                    originalDocumentId = input.originalDocumentId,
+                    paidByWorkerId = input.paidByWorkerId,
+                    rawQr = input.rawQr,
+                    contentHash = input.rawQr?.let(::sha256),
+                    note = input.note?.takeIf { it.isNotBlank() },
+                    createdAt = now,
+                    updatedAt = now,
+                ),
+            )
+            if (rowId == -1L) return@transaction ExpenseOutcome.Duplicate(null)
+
+            val sign = input.docType.sign
+            val split = Allocation.splitDocument(amounts, input.lines.map { if (sign < 0) -it.gross else it.gross })
+            db.purchaseDao().insertAllocations(
+                split.lines.mapIndexed { i, line ->
+                    CostAllocationEntity(newId(), docId, input.lines[i].jobId, line.net.cents, line.vat.cents, line.gross.cents)
+                },
+            )
+            // Uma nota de crédito não pressupõe devolução de dinheiro; só faturas podem ser pagas aqui.
+            if (input.paidNow && sign > 0) {
+                db.cashDao().insert(
+                    CashMovementEntity(
+                        id = newId(),
+                        operationId = "${input.operationId}:pay",
+                        date = input.paymentDate ?: input.docDate,
+                        kind = CashKind.SUPPLIER_PAYMENT,
+                        amountCents = input.gross.cents,
+                        jobId = input.lines.singleOrNull()?.jobId,
+                        method = input.paymentMethod,
+                        counterparty = input.supplierName,
+                        purchaseDocumentId = docId,
+                        createdAt = now,
+                    ),
+                )
+            }
+            audit("purchase", docId, "create", "${input.docType} ${amounts.gross.format()}" + if (split.isComplete) "" else " · por classificar ${split.unallocated.format()}")
+            ExpenseOutcome.Saved(docId, split.unallocated)
+        }
+    }
+
+    /** Pagamento (total ou parcial) a um fornecedor de um documento já registado. */
+    suspend fun paySupplier(operationId: String, documentId: String, amount: Money, date: LocalDate, method: PaymentMethod): SaveOutcome {
+        require(amount.isPositive) { "O valor tem de ser positivo" }
+        val now = clock()
+        return transaction {
+            val doc = requireNotNull(db.purchaseDao().getById(documentId)) { "Documento não encontrado" }
+            val outstanding = Money(doc.grossCents - db.purchaseDao().paidCents(documentId))
+            require(amount <= outstanding) { "O valor é superior ao que falta pagar (${outstanding.format()})" }
+            val jobIds = db.purchaseDao().allocationsFor(documentId).map { it.jobId }.distinct()
+            val rowId = db.cashDao().insert(
+                CashMovementEntity(
+                    id = newId(), operationId = operationId, date = date, kind = CashKind.SUPPLIER_PAYMENT,
+                    amountCents = amount.cents, jobId = jobIds.singleOrNull(), method = method,
+                    counterparty = doc.supplierName, purchaseDocumentId = documentId, createdAt = now,
+                ),
+            )
+            if (rowId == -1L) return@transaction SaveOutcome.Duplicate
+            audit("cash_movement", documentId, "supplier_payment", amount.format())
+            SaveOutcome.Saved
         }
     }
 

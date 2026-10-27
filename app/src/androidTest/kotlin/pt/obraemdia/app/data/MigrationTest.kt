@@ -7,6 +7,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -24,6 +25,12 @@ class MigrationTest {
 
     @get:Rule
     val helper = MigrationTestHelper(instrumentation, file, BundledSQLiteDriver(), AppDatabase::class)
+
+    // Cada teste parte de um ficheiro limpo (o helper com driver não o apaga entre testes).
+    @Before
+    fun clean() {
+        listOf("", "-wal", "-shm", ".lck").forEach { java.io.File(file.path + it).delete() }
+    }
 
     @Test
     fun v1_para_v2_preserva_obras_e_reservas() {
@@ -46,6 +53,27 @@ class MigrationTest {
                 assertTrue(st.step())
                 assertEquals("j1", st.getText(0))
                 assertTrue("Reservas antigas ficam sem operationId", st.isNull(1))
+            }
+        }
+    }
+
+    @Test
+    fun v2_para_v3_preserva_movimentos_e_cria_tabelas_de_compras() {
+        helper.createDatabase(2).use { db ->
+            db.execSQL(
+                "INSERT INTO cash_movements (id, operationId, date, kind, amountCents, createdAt, isDemo) " +
+                    "VALUES ('m1', 'op1', '2026-10-01', 'SUPPLIER_PAYMENT', 4500, 0, 0)",
+            )
+        }
+        helper.runMigrationsAndValidate(3).use { db ->
+            db.prepare("SELECT amountCents, purchaseDocumentId FROM cash_movements WHERE id = 'm1'").use { st ->
+                assertTrue(st.step())
+                assertEquals(4500L, st.getLong(0))
+                assertTrue(st.isNull(1))
+            }
+            db.prepare("SELECT COUNT(*) FROM purchase_documents").use { st ->
+                assertTrue(st.step())
+                assertEquals(0L, st.getLong(0))
             }
         }
     }

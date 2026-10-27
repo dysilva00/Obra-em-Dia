@@ -195,6 +195,8 @@ class ObraRepositoryTest {
         val snap = repo.snapshot.first()
         assertTrue(snap.hasDemoData)
         assertEquals(5, snap.jobs.size)
-        assertEquals(6, snap.movements.size)
+        // 3 recebimentos + 3 pagamentos de compras de demonstração + 1 pagamento real.
+        assertEquals(7, snap.movements.size)
+        assertEquals(4, snap.purchases.size)
     }
 }

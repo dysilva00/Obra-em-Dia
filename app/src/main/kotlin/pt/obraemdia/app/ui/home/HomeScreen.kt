@@ -54,7 +54,7 @@ fun HomeScreen(
     onOpenJob: (String) -> Unit,
     onRecordTime: () -> Unit,
     onRecordPayment: () -> Unit,
-    onNotReady: (String) -> Unit,
+    onAddExpense: () -> Unit,
 ) {
     var month by rememberSaveable { mutableStateOf(YearMonth.from(today)) }
     val monthMovements = snapshot.movementsIn(month)
@@ -84,7 +84,7 @@ fun HomeScreen(
             }
         }
 
-        item { QuickActions(onRecordTime, onRecordPayment, onNotReady) }
+        item { QuickActions(onRecordTime, onRecordPayment, onAddExpense) }
 
         item {
             SectionCard("Saldo acumulado", caption = "Real · em ${today.shortLabel()} · movimentos registados na app, não é o saldo bancário") {
@@ -104,6 +104,7 @@ fun HomeScreen(
         item {
             SectionCard("Em aberto", caption = "Posição em ${today.shortLabel()} · não são movimentos do mês") {
                 LabelValue("Por receber de clientes", toReceive.format())
+                LabelValue("Por pagar a fornecedores", snapshot.toPaySuppliers.format())
                 if (unknownDue > 0) {
                     Text(
                         "$unknownDue obra(s) sem preço ou IVA definido não entram neste total.",
@@ -156,14 +157,14 @@ fun HomeScreen(
 }
 
 @Composable
-private fun QuickActions(onRecordTime: () -> Unit, onRecordPayment: () -> Unit, onNotReady: (String) -> Unit) {
+private fun QuickActions(onRecordTime: () -> Unit, onRecordPayment: () -> Unit, onAddExpense: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Button(onClick = onRecordTime, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
             Icon(Icons.Filled.Schedule, contentDescription = null)
             Text("  Registar horas")
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilledTonalButton(onClick = { onNotReady("Adicionar gasto") }, modifier = Modifier.weight(1f).heightIn(min = 56.dp)) {
+            FilledTonalButton(onClick = onAddExpense, modifier = Modifier.weight(1f).heightIn(min = 56.dp)) {
                 Icon(Icons.Filled.ShoppingCart, contentDescription = null)
                 Text("  Gasto", softWrap = false)
             }
