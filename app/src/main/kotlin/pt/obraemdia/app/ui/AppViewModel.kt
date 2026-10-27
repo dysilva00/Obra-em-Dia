@@ -156,12 +156,22 @@ class AppViewModel(private val container: AppContainer) : ViewModel() {
         }
     }
 
-    suspend fun recordExpense(input: NewExpense): SaveResult = runCatching {
+    /** [pdf]: comprovativo a guardar ligado ao documento (só depois de o gasto estar gravado). */
+    suspend fun recordExpense(input: NewExpense, pdf: android.net.Uri? = null): SaveResult = runCatching {
         when (val outcome = repo.recordExpense(input)) {
-            is ExpenseOutcome.Saved -> SaveResult(
-                true,
-                "Gasto registado" + if (outcome.unallocated.isZero) "" else " · ${outcome.unallocated.format()} por classificar",
-            )
+            is ExpenseOutcome.Saved -> {
+                val attached = pdf == null || runCatching {
+                    container.media.addAttachment(
+                        input.lines.map { it.jobId }.distinct().singleOrNull(), pdf, pt.obraemdia.app.data.db.AttachmentKind.DOCUMENT,
+                        listOfNotNull(input.supplierName, input.docNumber).joinToString(" "), input.docDate, outcome.documentId,
+                    )
+                }.isSuccess
+                SaveResult(
+                    true,
+                    "Gasto registado" + (if (outcome.unallocated.isZero) "" else " · ${outcome.unallocated.format()} por classificar") +
+                        if (attached) "" else " · o PDF não pôde ser guardado",
+                )
+            }
             is ExpenseOutcome.Duplicate -> SaveResult(
                 false,
                 outcome.existing?.let { d ->

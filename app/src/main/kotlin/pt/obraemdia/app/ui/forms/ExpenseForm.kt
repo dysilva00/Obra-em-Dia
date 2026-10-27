@@ -1,5 +1,8 @@
 package pt.obraemdia.app.ui.forms
 
+import androidx.compose.runtime.collectAsState
+import androidx.compose.material.icons.filled.PictureAsPdf
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.automirrored.filled.CallSplit
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -111,8 +114,20 @@ private fun Chips(label: String, content: @Composable () -> Unit) {
 private fun Chip(selected: Boolean, text: String, onClick: () -> Unit) =
     FilterChip(selected, onClick, { Text(text) }, Modifier.heightIn(min = 48.dp))
 
+/** Tipo de documento a partir do código SAF-T do QR (campo D). */
+fun qrDocumentType(code: String): DocumentType = when (code.uppercase()) {
+    "FT" -> DocumentType.INVOICE
+    "FR" -> DocumentType.INVOICE_RECEIPT
+    "FS" -> DocumentType.SIMPLIFIED_INVOICE
+    "NC" -> DocumentType.CREDIT_NOTE
+    "RC", "RG" -> DocumentType.RECEIPT
+    "GR", "GT", "GA", "GC", "GD" -> DocumentType.DELIVERY_NOTE
+    "PF", "OR", "FO" -> DocumentType.PRO_FORMA
+    else -> DocumentType.OTHER
+}
+
 @Composable
-fun ExpenseScreen(vm: AppViewModel, snapshot: Snapshot, initialJobId: String?, onDone: (String) -> Unit) {
+fun ExpenseScreen(vm: AppViewModel, snapshot: Snapshot, initialJobId: String?, onScan: () -> Unit, onDone: (String) -> Unit) {
     val operationId = rememberSaveable { newId() }
     val jobs = snapshot.summaries.filter { it.job.status != JobStatus.CANCELLED && !it.job.archived }
     val targets = listOf(Target(null, "Despesa geral")) + jobs.map { Target(it.job.id, it.job.title) }
@@ -140,7 +155,67 @@ fun ExpenseScreen(vm: AppViewModel, snapshot: Snapshot, initialJobId: String?, o
     var error by rememberSaveable { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
+    // Dados lidos do QR da AT (câmara ou PDF): base e IVA exatos e o conteúdo original.
+    var rawQr by rememberSaveable { mutableStateOf<String?>(null) }
+    var atcud by rememberSaveable { mutableStateOf<String?>(null) }
+    var qrNetCents by rememberSaveable { mutableStateOf<Long?>(null) }
+    var qrVatCents by rememberSaveable { mutableStateOf<Long?>(null) }
+    var pdfUri by rememberSaveable { mutableStateOf<String?>(null) }
+    var reading by remember { mutableStateOf(false) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    fun applyQr(d: pt.obraemdia.domain.fiscalqr.AtQrDocument, pdf: android.net.Uri?) {
+        if (d.isCancelled) {
+            error = "Este documento está ANULADO pelo fornecedor: não deve ser registado como gasto."
+            return
+        }
+        total = d.gross.editText()
+        type = qrDocumentType(d.docType)
+        nif = d.issuerNif
+        number = d.docNumber
+        docDate = d.date
+        atcud = d.atcud
+        rawQr = d.raw
+        qrNetCents = (d.gross - d.totalTaxes).cents
+        qrVatCents = d.totalTaxes.cents
+        vatRate = null
+        pdfUri = pdf?.toString()
+        // O QR não traz o nome comercial: usar o de uma compra anterior com o mesmo NIF.
+        if (supplier.isBlank()) supplier = snapshot.purchases.firstOrNull { it.supplierNif == d.issuerNif }?.supplierName.orEmpty()
+        if (type == DocumentType.CREDIT_NOTE) paidNow = false
+        error = null
+    }
+
+    // Resultado do leitor de câmara (partilhado com o ecrã de faturas emitidas).
+    val scanned by vm.scannedQr.collectAsState()
+    androidx.compose.runtime.LaunchedEffect(scanned) {
+        scanned?.let { applyQr(it, null); vm.scannedQr.value = null }
+    }
+    val pdfPicker = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        reading = true
+        scope.launch {
+            when (val r = pt.obraemdia.app.fiscal.QrReader.fromPdf(context, uri)) {
+                is pt.obraemdia.domain.fiscalqr.AtQrResult.Ok -> applyQr(r.document, uri)
+                is pt.obraemdia.domain.fiscalqr.AtQrResult.Invalid -> {
+                    // Sem QR: o PDF fica como comprovativo e os valores introduzem-se à mão.
+                    pdfUri = uri.toString()
+                    error = r.message
+                }
+            }
+            reading = false
+        }
+    }
+
     val gross = Money.parse(total)?.takeIf { it.isPositive }
+    // Se o total for alterado à mão, a base/IVA do QR deixam de se aplicar.
+    val qrAmounts = if (qrNetCents != null && qrVatCents != null && gross?.cents == qrNetCents!! + qrVatCents!!) {
+        pt.obraemdia.domain.money.DocumentAmounts(Money(qrNetCents!!), Money(qrVatCents!!), gross)
+    } else {
+        null
+    }
     val isCredit = type == DocumentType.CREDIT_NOTE
     val nifDigits = nif.filter(Char::isDigit)
     val nifWarning = nifDigits.isNotEmpty() && !Nif.isValid(nifDigits)
@@ -162,6 +237,22 @@ fun ExpenseScreen(vm: AppViewModel, snapshot: Snapshot, initialJobId: String?, o
         Modifier.verticalScroll(rememberScrollState()).imePadding().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            pt.obraemdia.app.ui.components.CompactAction("Ler QR", Icons.Filled.QrCodeScanner, onScan, Modifier.weight(1f))
+            pt.obraemdia.app.ui.components.CompactAction(
+                "Importar PDF", Icons.Filled.PictureAsPdf, { pdfPicker.launch(arrayOf("application/pdf")) }, Modifier.weight(1f), enabled = !reading,
+            )
+        }
+        if (reading) Text("A ler o código QR do PDF…", style = MaterialTheme.typography.bodyMedium)
+        if (rawQr != null) {
+            Text(
+                "Dados lidos do código QR da AT" + (if (pdfUri != null) " · o PDF fica como comprovativo" else "") + ". Confira e complete.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        } else if (pdfUri != null) {
+            Text("O PDF fica como comprovativo.", style = MaterialTheme.typography.bodySmall)
+        }
         OutlinedTextField(
             total, { total = it }, label = { Text("Total do documento, com IVA (€) *") }, singleLine = true,
             isError = total.isNotBlank() && gross == null,
@@ -212,10 +303,14 @@ fun ExpenseScreen(vm: AppViewModel, snapshot: Snapshot, initialJobId: String?, o
         DateField("Data do documento", docDate, vm.today) { docDate = it }
         Chips("Categoria") { ExpenseCategory.entries.forEach { c -> Chip(category == c, c.label) { category = c } } }
 
-        Chips("IVA incluído no total") {
-            listOf<Int?>(null, 0, 600, 1300, 2300).forEach { bp -> Chip(vatRate == bp, bp?.let(Vat::label) ?: "Não discriminado") { vatRate = bp } }
+        if (qrAmounts != null) {
+            Text("Base ${qrAmounts.net.format()} + impostos ${qrAmounts.vat.format()} (do QR)", style = MaterialTheme.typography.bodyMedium)
+        } else {
+            Chips("IVA incluído no total") {
+                listOf<Int?>(null, 0, 600, 1300, 2300).forEach { bp -> Chip(vatRate == bp, bp?.let(Vat::label) ?: "Não discriminado") { vatRate = bp } }
+            }
         }
-        if (gross != null && vatRate != null) {
+        if (qrAmounts == null && gross != null && vatRate != null) {
             val split = Vat.splitGross(gross, vatRate!!)
             Text("Base ${split.net.format()} + IVA ${split.vat.format()}", style = MaterialTheme.typography.bodyMedium)
         }
@@ -303,7 +398,7 @@ fun ExpenseScreen(vm: AppViewModel, snapshot: Snapshot, initialJobId: String?, o
                             supplierNif = nifDigits.takeIf { it.isNotEmpty() },
                             docType = type,
                             docNumber = number,
-                            atcud = null,
+                            atcud = atcud.takeIf { rawQr != null },
                             docDate = docDate,
                             dueDate = dueDate.takeIf { !paidNow },
                             category = category,
@@ -317,7 +412,10 @@ fun ExpenseScreen(vm: AppViewModel, snapshot: Snapshot, initialJobId: String?, o
                             paidByWorkerId = paidBy,
                             originalDocumentId = originalId.takeIf { isCredit },
                             note = note,
+                            rawQr = rawQr,
+                            exactAmounts = qrAmounts,
                         ),
+                        pdfUri?.let(android.net.Uri::parse),
                     )
                     if (result.ok) onDone(result.message) else { saving = false; error = result.message }
                 }

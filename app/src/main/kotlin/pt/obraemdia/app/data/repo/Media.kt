@@ -35,14 +35,14 @@ class Media(
      * Copia o ficheiro para a pasta privada e só depois grava o registo. Se a gravação falhar,
      * o ficheiro copiado é apagado: nunca fica um registo a apontar para um ficheiro em falta.
      */
-    suspend fun addAttachment(jobId: String, uri: Uri, kind: AttachmentKind, caption: String?, takenOn: LocalDate) {
+    suspend fun addAttachment(jobId: String?, uri: Uri, kind: AttachmentKind, caption: String?, takenOn: LocalDate, purchaseDocumentId: String? = null) {
         val stored = withContext(Dispatchers.IO) { store.import(uri) }
         try {
             repo.transaction {
                 val id = newId()
                 db.mediaDao().insertAttachment(
                     AttachmentEntity(
-                        id = id, jobId = jobId, kind = kind, relativePath = stored.relativePath, mimeType = stored.mimeType,
+                        id = id, jobId = jobId, purchaseDocumentId = purchaseDocumentId, kind = kind, relativePath = stored.relativePath, mimeType = stored.mimeType,
                         sizeBytes = stored.sizeBytes, sha256 = stored.sha256, caption = caption?.takeIf { it.isNotBlank() },
                         takenOn = takenOn, createdAt = clock(),
                     ),

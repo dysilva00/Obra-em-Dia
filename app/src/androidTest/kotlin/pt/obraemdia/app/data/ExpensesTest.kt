@@ -165,6 +165,20 @@ class ExpensesTest {
     }
 
     @Test
+    fun compra_lida_do_qr_usa_base_e_iva_exatos_e_nao_duplica_com_outro_numero_de_operacao() = runTest {
+        val a = job("A")
+        val d = (pt.obraemdia.domain.fiscalqr.AtQrParser.parse(pt.obraemdia.app.fiscal.QrReaderTest.SAMPLE) as pt.obraemdia.domain.fiscalqr.AtQrResult.Ok).document
+        val exact = pt.obraemdia.domain.money.DocumentAmounts(d.gross - d.totalTaxes, d.totalTaxes, d.gross)
+        val input = expense(d.gross, listOf(ExpenseLine(a, d.gross)), nif = d.issuerNif, number = d.docNumber)
+            .copy(atcud = d.atcud, rawQr = d.raw, exactAmounts = exact, vatRateBp = 600)
+        assertTrue(repo.recordExpense(input) is ExpenseOutcome.Saved)
+        val doc = repo.snapshot.first().purchases.single()
+        assertEquals(150000L, doc.netCents) // do QR, não dos 6 % indicados
+        assertEquals(34500L, doc.vatCents)
+        assertTrue(repo.recordExpense(input.copy(operationId = newId(), docNumber = "outro")) is ExpenseOutcome.Duplicate)
+    }
+
+    @Test
     fun parte_por_classificar_fica_visivel() = runTest {
         val a = job("A")
         repo.recordExpense(expense(Money.euros(100), listOf(ExpenseLine(a, Money.euros(60)))))

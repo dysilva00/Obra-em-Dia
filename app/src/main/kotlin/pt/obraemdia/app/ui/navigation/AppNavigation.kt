@@ -292,7 +292,7 @@ fun AppNavigation() {
                 SettingsScreen(vm, snap, timeOff, message, onHistory = { nav.navigate(HistoryRoute) })
             }
             composable<ClosureRoute> { entry -> ClosureScreen(vm, snap, entry.toRoute<ClosureRoute>().jobId, message, finished) }
-            composable<ExpenseRoute> { entry -> ExpenseScreen(vm, snap, entry.toRoute<ExpenseRoute>().jobId, finished) }
+            composable<ExpenseRoute> { entry -> ExpenseScreen(vm, snap, entry.toRoute<ExpenseRoute>().jobId, onScan = { nav.navigate(QrScanRoute) }, onDone = finished) }
             composable<BookingRoute> { entry ->
                 val route = entry.toRoute<BookingRoute>()
                 BookingScreen(vm, snap, route.jobId, route.date?.let(java.time.LocalDate::parse), finished)

@@ -36,6 +36,7 @@ Legenda: ✅ concluído e verificado · 🟡 parcial · ⬜ pendente
 - ✅ Notas, fotos e checklist por obra: fotos antes/durante/depois (câmara ou galeria, copiadas e comprimidas para a pasta privada), legendas, tarefas e lista de compras, notas editáveis. Verificado no emulador com a câmara virtual.
 - ✅ Lembretes: resumo diário configurável (hora e tipos), com a app fechada, sem repetir o mesmo aviso; permissão pedida só ao ligar. Verificado no emulador (notificação real).
 - ✅ Faturas emitidas: ler QR (câmara), importar PDF (lê o QR da AT dentro do PDF) ou à mão; totais do ano por NIF (sem IVA, impostos, total, retenções), limite opcional, duplicados bloqueados, PDF anexado. Importação de PDF verificada no emulador; leitura pela câmara por verificar no aparelho real.
+- ✅ Adicionar gasto: Ler QR e Importar PDF preenchem NIF, tipo, número, ATCUD, data, total e base/IVA exatos; PDF guardado como comprovativo; duplicados também por ATCUD e conteúdo do QR.
 - ✅ Histórico de alterações (Definições): todas as criações, correções, estornos, anulações, encerramentos e definições, com filtro por tipo.
 - ✅ Ícone próprio da app (adaptativo, com versão monocromática para ícones temáticos).
 - ✅ Design: Material 3 Expressive (beta) e Plus Jakarta Sans.

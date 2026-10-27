@@ -128,6 +128,8 @@ data class NewExpense(
     val paidByWorkerId: String?,
     val originalDocumentId: String? = null,
     val rawQr: String? = null,
+    /** Base e IVA exatos (lidos do QR). Prevalecem sobre [vatRateBp]. Valores positivos. */
+    val exactAmounts: DocumentAmounts? = null,
     val note: String? = null,
 )
 
@@ -345,7 +347,9 @@ class ObraRepository(private val db: AppDatabase, private val clock: () -> Long 
 
             val amounts = Costs.signed(
                 input.docType,
-                input.vatRateBp?.let { Vat.splitGross(input.gross, it) } ?: DocumentAmounts(input.gross, Money.ZERO, input.gross),
+                input.exactAmounts?.takeIf { it.gross == input.gross }
+                    ?: input.vatRateBp?.let { Vat.splitGross(input.gross, it) }
+                    ?: DocumentAmounts(input.gross, Money.ZERO, input.gross),
             )
             val docId = newId()
             val rowId = db.purchaseDao().insert(
