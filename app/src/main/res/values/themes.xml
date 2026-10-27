@@ -1,0 +1,4 @@
+<resources>
+    <!-- Tema da janela; as cores da interface são definidas em Compose (ui/theme). -->
+    <style name="Theme.ObraEmDia" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>
